@@ -1,0 +1,19 @@
+[package]
+name = "aliter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# KaTeX uses this
+regex = "1.5.4"
+# Lazy initialization primarily. It also might be in std, so using it over lazy_static
+once_cell = "1.9.0"
+# Needed to mimic KaTeX's behavior
+unicode-normalization = "0.1.21"
+
+[features]
+default = ["html", "mathml"]
+# Whether it should support outputting HTML
+html = []
+# Whether it should support outputting mathml
+mathml = []
