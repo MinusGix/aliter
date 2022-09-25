@@ -1,8 +1,8 @@
-use std::{num::ParseIntError, ops::Range};
+use std::{fmt::Debug, num::ParseIntError, ops::Range};
 
 use crate::expander::Mode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SourceLocation(pub Range<usize>);
 impl SourceLocation {
     pub(crate) fn combine(
@@ -19,6 +19,13 @@ impl SourceLocation {
 impl From<Range<usize>> for SourceLocation {
     fn from(range: Range<usize>) -> Self {
         Self(range)
+    }
+}
+// Custom implementation of debug so that it is a bit less verbose when
+// printed
+impl Debug for SourceLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("SourceLocation({:?})", self.0))
     }
 }
 
