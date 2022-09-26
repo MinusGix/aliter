@@ -384,7 +384,7 @@ impl<'a, 'f> Parser<'a, 'f> {
                 }
 
                 over_index = Some(i);
-                func_name = Some(node.replace_with.as_str());
+                func_name = Some(&node.replace_with);
             }
         }
 
@@ -427,7 +427,7 @@ impl<'a, 'f> Parser<'a, 'f> {
                     None,
                 )?
             } else {
-                self.call_function(func_name, &[numer_node, denom_node], &[], None, None)?
+                self.call_function(&func_name, &[numer_node, denom_node], &[], None, None)?
             };
 
             Ok(vec![node])

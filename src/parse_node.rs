@@ -490,8 +490,8 @@ pub struct GenFracNode {
     pub numer: Box<ParseNode>,
     pub denom: Box<ParseNode>,
     pub has_bar_line: bool,
-    pub left_delim: Option<String>,
-    pub right_delim: Option<String>,
+    pub left_delim: Option<Cow<'static, str>>,
+    pub right_delim: Option<Cow<'static, str>>,
     pub size: StyleAuto,
     pub bar_size: Option<Measurement>,
     pub info: NodeInfo,
@@ -544,7 +544,7 @@ pub struct IncludeGraphicsNode {
 
 #[derive(Debug, Clone)]
 pub struct InfixNode {
-    pub replace_with: String,
+    pub replace_with: Cow<'static, str>,
     pub size: Option<Measurement>,
     pub token: Option<Token<'static>>,
     pub info: NodeInfo,
