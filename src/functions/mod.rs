@@ -18,6 +18,7 @@ pub mod char;
 pub mod color;
 pub mod cr;
 pub mod def;
+pub mod genfrac;
 
 // TODO: Put specific function groups under features? Eh
 pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
@@ -33,6 +34,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     color::add_functions(&mut fns);
     cr::add_functions(&mut fns);
     def::add_functions(&mut fns);
+    genfrac::add_functions(&mut fns);
 
     fns
 });
@@ -127,6 +129,11 @@ impl FunctionPropSpec {
         self
     }
 
+    pub(crate) fn with_allowed_in_argument(mut self, allowed_in_argument: bool) -> Self {
+        self.allowed_in_argument = allowed_in_argument;
+        self
+    }
+
     pub(crate) fn with_primitive(mut self, primitive: bool) -> Self {
         self.primitive = primitive;
         self
@@ -134,6 +141,11 @@ impl FunctionPropSpec {
 
     pub(crate) fn with_arg_types(mut self, arg_types: impl Into<Cow<'static, [ArgType]>>) -> Self {
         self.arg_types = arg_types.into();
+        self
+    }
+
+    pub(crate) fn with_infix(mut self, infix: bool) -> Self {
+        self.infix = infix;
         self
     }
 }

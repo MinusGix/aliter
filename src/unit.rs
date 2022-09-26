@@ -18,6 +18,26 @@ pub enum Measurement {
     Mu(Mu),
 }
 impl Measurement {
+    pub fn num(&self) -> f64 {
+        match self {
+            Measurement::Pt(x) => x.0,
+            Measurement::Mm(x) => x.0,
+            Measurement::Cm(x) => x.0,
+            Measurement::In(x) => x.0,
+            Measurement::Bp(x) => x.0,
+            Measurement::Pc(x) => x.0,
+            Measurement::Dd(x) => x.0,
+            Measurement::Cc(x) => x.0,
+            Measurement::Nd(x) => x.0,
+            Measurement::Nc(x) => x.0,
+            Measurement::Sp(x) => x.0,
+            Measurement::Px(x) => x.0,
+            Measurement::Ex(x) => x.0,
+            Measurement::Em(x) => x.0,
+            Measurement::Mu(x) => x.0,
+        }
+    }
+
     pub fn is_relative(&self) -> bool {
         matches!(self, Self::Ex(_) | Self::Em(_) | Self::Mu(_))
     }
