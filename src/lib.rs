@@ -24,6 +24,7 @@ pub mod parse_node;
 pub mod parser;
 pub mod style;
 pub mod symbols;
+mod thing;
 pub mod tree;
 pub mod unicode;
 pub mod unit;
@@ -101,5 +102,34 @@ pub fn parse_tree<'a>(input: &'a str, conf: ParserConfig) -> Result<Vec<ParseNod
         })])
     } else {
         Ok(tree)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{parse_tree, parser::ParserConfig};
+
+    #[test]
+    fn test_parse_tree() {
+        let conf = ParserConfig::default();
+
+        // TODO: This is just testing that they output values and not errors, but
+        // we could do value tests for these.
+        let simple_num = parse_tree("4", conf.clone()).unwrap();
+        dbg!(simple_num);
+        let basic_num = parse_tree("52", conf.clone()).unwrap();
+        dbg!(basic_num);
+
+        let basic_expr = parse_tree("9 + 12", conf.clone()).unwrap();
+        dbg!(basic_expr);
+
+        let paren_expr = parse_tree("(42 + 9)", conf.clone()).unwrap();
+        dbg!(paren_expr);
+
+        let basic_block = parse_tree("{4}", conf.clone()).unwrap();
+        dbg!(basic_block);
+
+        let basic_frac = parse_tree(r#"\frac{3}{9}"#, conf.clone()).unwrap();
+        dbg!(basic_frac);
     }
 }
