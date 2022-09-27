@@ -24,7 +24,6 @@ pub mod parse_node;
 pub mod parser;
 pub mod style;
 pub mod symbols;
-mod thing;
 pub mod tree;
 pub mod unicode;
 pub mod unit;
@@ -69,6 +68,15 @@ pub struct Options {
     // TODO: is this a float?
     pub min_rule_thickness: usize,
     pub font_metrics: FontMetrics,
+}
+impl Options {
+    pub fn get_color(&self) -> Option<Color> {
+        if self.phantom {
+            Some(Color::Named(Cow::Borrowed("transparent")))
+        } else {
+            self.color.clone()
+        }
+    }
 }
 
 /// For now this is simply exported

@@ -6,6 +6,11 @@ pub trait VirtualNode {
     // fn into_node(self) -> Node;
     fn to_markup(&self) -> String;
 }
+impl<T: VirtualNode + ?Sized> VirtualNode for Box<T> {
+    fn to_markup(&self) -> String {
+        (**self).to_markup()
+    }
+}
 
 // TODO: implements htmldomnode, mathdomnode..
 pub struct DocumentFragment<T: VirtualNode> {

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::tree::VirtualNode;
+use crate::{parse_node::Color, tree::VirtualNode, util, Options};
 
 // TODO: We could have so fields that are numbers have to be actual numbers?
 #[derive(Debug, Clone, Default)]
@@ -14,7 +14,7 @@ pub struct CssStyle {
     pub border_style: Option<Cow<'static, str>>,
     pub border_width: Option<Cow<'static, str>>,
     pub bottom: Option<Cow<'static, str>>,
-    pub color: Option<Cow<'static, str>>,
+    pub color: Option<Color>,
     pub height: Option<Cow<'static, str>>,
     pub left: Option<Cow<'static, str>>,
     pub margin: Option<Cow<'static, str>>,
@@ -28,17 +28,157 @@ pub struct CssStyle {
     pub width: Option<Cow<'static, str>>,
     pub vertical_align: Option<Cow<'static, str>>,
 }
+impl CssStyle {
+    // Technically could be modified to return just a `Cow<'static, str>` if there was only one set
+    /// Convert this into how it would be if in the `style=""` attribute  
+    pub fn as_style_attr(&self) -> Option<String> {
+        let mut res = String::new();
 
+        let mut append_field = |field_name: &'static str, val: &Option<Cow<'static, str>>| {
+            if let Some(val) = val {
+                res.push_str(field_name);
+                res.push_str(": ");
+                res.push_str(val);
+                res.push(';');
+            }
+        };
+
+        append_field("background-color", &self.background_color);
+        append_field("border-bottom-width", &self.border_bottom_width);
+        append_field("border-color", &self.border_color);
+        append_field("border-right-style", &self.border_right_style);
+        append_field("border-right-width", &self.border_right_width);
+        append_field("border-top-width", &self.border_top_width);
+        append_field("border-style", &self.border_style);
+        append_field("border-width", &self.border_width);
+        append_field("bottom", &self.bottom);
+        append_field("height", &self.height);
+        append_field("left", &self.left);
+        append_field("margin", &self.margin);
+        append_field("margin-left", &self.margin_left);
+        append_field("margin-right", &self.margin_right);
+        append_field("margin-top", &self.margin_top);
+        append_field("min-width", &self.min_width);
+        append_field("padding-left", &self.padding_left);
+        append_field("position", &self.position);
+        append_field("top", &self.top);
+        append_field("width", &self.width);
+        append_field("vertical-align", &self.vertical_align);
+
+        if let Some(color) = &self.color {
+            let color = color.to_string();
+            res.push_str("color: ");
+            res.push_str(&color);
+            res.push(';');
+        }
+
+        if res.is_empty() {
+            None
+        } else {
+            Some(res)
+        }
+    }
+}
+
+// TODO: We could do better by having keys be Cow<'static, str>?
+// Though I think you need a crate for a nicely behaving map type for that
+pub type Attributes = HashMap<String, String>;
+// TODO: Vec of enum for common kinds?
+pub type ClassList = Vec<String>;
+
+/// Returns the value that should go in `class="{}"`
+fn class_attr(classes: &ClassList) -> Option<String> {
+    if classes.is_empty() {
+        None
+    } else {
+        // TODO: use intersperse instead
+        Some(
+            classes
+                .iter()
+                .map(|class| util::escape(class.as_str()))
+                .collect::<Vec<Cow<'_, str>>>()
+                .join(" "),
+        )
+    }
+}
+
+fn to_markup_attr<T: VirtualNode>(
+    node: &HtmlDomNode,
+    attributes: &Attributes,
+    children: &[T],
+    tag_name: &str,
+) -> String {
+    let mut markup = format!("<{tag_name}");
+
+    if let Some(classes) = class_attr(&node.classes) {
+        markup.push_str(&format!(" class=\"{}\"", classes));
+    }
+
+    if let Some(style) = node.style.as_style_attr() {
+        markup.push_str(" style=\"");
+        markup.push_str(&style);
+        markup.push('"');
+    }
+
+    for (name, val) in attributes.iter() {
+        markup.push(' ');
+        markup.push_str(name);
+        markup.push_str("=\"");
+        markup.push_str(&util::escape(val));
+        markup.push('"');
+    }
+
+    markup.push('>');
+
+    for child in children {
+        markup.push_str(&child.to_markup());
+    }
+
+    markup.push_str("</");
+    markup.push_str(tag_name);
+    markup.push('>');
+
+    markup
+}
+
+// Note: Unlike KaTeX, we have this as a shared structure for use as a field
+// rather than an interface. This is primarily because Rust does not have
+// field-interfaces, and while we could use a trait that is not a nice
+// implementation. So, instead we have a structure that another structure
+// can just include.
 #[derive(Debug, Clone)]
 pub struct HtmlDomNode {
-    // TODO: Vec of enum?
-    pub classes: Vec<String>,
+    pub classes: ClassList,
     pub height: f64,
     pub depth: f64,
     pub max_font_size: f64,
     pub style: CssStyle,
 }
 impl HtmlDomNode {
+    pub fn new(
+        mut classes: ClassList,
+        options: Option<&Options>,
+        mut style: CssStyle,
+    ) -> HtmlDomNode {
+        if let Some(options) = options {
+            if options.style.tight() {
+                classes.push("mtight".to_owned());
+            }
+
+            if let Some(color) = options.get_color() {
+                style.color = Some(color);
+            }
+        }
+
+        HtmlDomNode {
+            classes,
+            height: 0.0,
+            depth: 0.0,
+            max_font_size: 0.0,
+            style,
+        }
+    }
+
     pub fn has_class(&self, class: &str) -> bool {
         self.classes.iter().any(|x| x == class)
     }
@@ -46,7 +186,7 @@ impl HtmlDomNode {
 impl Default for HtmlDomNode {
     fn default() -> Self {
         Self {
-            classes: Vec::new(),
+            classes: ClassList::new(),
             height: 0.0,
             depth: 0.0,
             max_font_size: 0.0,
@@ -60,23 +200,158 @@ impl VirtualNode for HtmlDomNode {
     }
 }
 
+/// A trait for nodes which contain an [`HtmlDomNode`]  
+/// This is needed since some parts of KaTeX use [`HtmlDomNode`] like an abstract
+/// base, but we're treating it like a normal structure
+pub trait WithHtmlDomNode: VirtualNode {
+    fn node(&self) -> &HtmlDomNode;
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode;
+}
+impl<T: WithHtmlDomNode + ?Sized> WithHtmlDomNode for Box<T> {
+    fn node(&self) -> &HtmlDomNode {
+        (**self).node()
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        (**self).node_mut()
+    }
+}
+impl WithHtmlDomNode for HtmlDomNode {
+    fn node(&self) -> &HtmlDomNode {
+        self
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        self
+    }
+}
+
+// TODO: Katex exports
+// type DomSpan = Span<HtmlDomNode>
+// but that is probably more of a:
+// type DomSpan = Span<Box<dyn WithHtmlDomNode>>
+
 pub struct Span<T: VirtualNode> {
     pub node: HtmlDomNode,
     pub children: Vec<T>,
-    pub attributes: HashMap<String, String>,
+    pub attributes: Attributes,
     pub width: Option<f64>,
 }
-impl<T: VirtualNode> Span<T> {}
+impl<T: VirtualNode> Span<T> {
+    pub fn new(
+        classes: ClassList,
+        children: Vec<T>,
+        options: Option<&Options>,
+        style: CssStyle,
+    ) -> Span<T> {
+        let node = HtmlDomNode::new(classes, options, style);
+        Span {
+            node,
+            children,
+            attributes: Attributes::new(),
+            width: None,
+        }
+    }
+}
+impl<T: VirtualNode> Default for Span<T> {
+    fn default() -> Self {
+        Span {
+            node: HtmlDomNode::new(ClassList::new(), None, CssStyle::default()),
+            children: Vec::new(),
+            attributes: Attributes::new(),
+            width: None,
+        }
+    }
+}
+impl<T: VirtualNode> WithHtmlDomNode for Span<T> {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
+}
+impl<T: VirtualNode> VirtualNode for Span<T> {
+    fn to_markup(&self) -> String {
+        to_markup_attr(&self.node, &self.attributes, &self.children, "span")
+    }
+}
 
 pub struct Anchor {
     pub node: HtmlDomNode,
-    pub children: Vec<HtmlDomNode>,
+    pub children: Vec<Box<dyn WithHtmlDomNode>>,
+    pub attributes: Attributes,
+}
+impl Anchor {
+    pub fn new(
+        href: String,
+        classes: ClassList,
+        children: Vec<Box<dyn WithHtmlDomNode>>,
+        options: &Options,
+    ) -> Anchor {
+        let node = HtmlDomNode::new(classes, Some(options), CssStyle::default());
+        let mut attributes = Attributes::new();
+        attributes.insert("href".to_string(), href);
+
+        Anchor {
+            node,
+            children,
+            attributes,
+        }
+    }
+}
+impl WithHtmlDomNode for Anchor {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
+}
+impl VirtualNode for Anchor {
+    fn to_markup(&self) -> String {
+        to_markup_attr(&self.node, &self.attributes, &self.children, "a")
+    }
 }
 
 pub struct Img {
     pub node: HtmlDomNode,
     pub src: String,
     pub alt: String,
+}
+impl Img {
+    pub fn new(src: String, alt: String, style: CssStyle) -> Img {
+        let node = HtmlDomNode::new(vec!["mord".to_string()], None, style);
+        Img { node, src, alt }
+    }
+}
+impl WithHtmlDomNode for Img {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
+}
+impl VirtualNode for Img {
+    fn to_markup(&self) -> String {
+        // Note: This ignoring classes is what the KaTeX code already does
+        let mut markup = format!("<img src=\"{}\" alt=\"{}\"", self.src, self.alt);
+
+        if let Some(style) = self.node.style.as_style_attr() {
+            markup.push_str(" style=\"");
+            markup.push_str(&util::escape(&style));
+            markup.push('"');
+        }
+
+        markup.push_str("'/>");
+
+        markup
+    }
 }
 
 /// A symbol node contains information about a single symbol.  
@@ -85,11 +360,101 @@ pub struct Img {
 pub struct SymbolNode {
     pub node: HtmlDomNode,
     pub text: String,
-    // TODO: is this a flaot?
-    pub italic: usize,
+    pub italic: f64,
     pub skew: f64,
+    pub width: f64,
+}
+impl SymbolNode {
+    pub fn new(
+        text: String,
+        height: Option<f64>,
+        depth: Option<f64>,
+        italic: Option<f64>,
+        skew: Option<f64>,
+        width: Option<f64>,
+        classes: ClassList,
+        style: CssStyle,
+    ) -> SymbolNode {
+        let mut node = HtmlDomNode::new(classes, None, style);
+
+        if let Some(height) = height {
+            node.height = height;
+        }
+
+        if let Some(depth) = depth {
+            node.depth = depth;
+        }
+
+        // FIXME: We currently ignore script!
+        // FIXME: We currently ignore the special i + diacritic character handling
+
+        SymbolNode {
+            node,
+            text,
+            italic: italic.unwrap_or(0.0),
+            skew: skew.unwrap_or(0.0),
+            width: width.unwrap_or(0.0),
+        }
+    }
+}
+impl WithHtmlDomNode for SymbolNode {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
+}
+impl VirtualNode for SymbolNode {
+    fn to_markup(&self) -> String {
+        let mut needs_span = false;
+
+        let mut markup = "<span".to_string();
+
+        if let Some(classes) = class_attr(&self.node.classes) {
+            markup.push_str(" class=\"");
+            markup.push_str(&classes);
+            markup.push('"');
+        }
+
+        let italic_style = if self.italic > 0.0 {
+            Some(format!("margin-right:{}em;", self.italic))
+        } else {
+            None
+        };
+
+        let styles = self.node.style.as_style_attr();
+
+        if styles.is_some() || italic_style.is_some() {
+            needs_span = true;
+            markup.push_str(" style=\"");
+
+            if let Some(italic_style) = italic_style {
+                markup.push_str(&italic_style);
+            }
+
+            if let Some(styles) = styles {
+                markup.push_str(&styles);
+            }
+
+            markup.push('"');
+        }
+
+        let escaped = util::escape(&self.text);
+        if needs_span {
+            markup.push('<');
+            markup.push_str(&escaped);
+            markup.push_str("</span>");
+
+            markup
+        } else {
+            escaped.into_owned()
+        }
+    }
 }
 
+// FIXME: Implement this.
 // pub struct SvgNode {
 //     pub children: Vec<SvgChildNode>,
 //     pub attributes: HashMap<String, String>,
@@ -99,7 +464,30 @@ pub struct PathNode {
     pub path_name: String,
     pub alternate: Option<String>,
 }
+impl PathNode {
+    pub fn new(path_name: String, alternate: Option<String>) -> PathNode {
+        PathNode {
+            path_name,
+            alternate,
+        }
+    }
+}
+impl VirtualNode for PathNode {
+    fn to_markup(&self) -> String {
+        todo!()
+    }
+}
 
 pub struct LineNode {
-    pub attributes: HashMap<String, String>,
+    pub attributes: Attributes,
+}
+impl LineNode {
+    pub fn new(attributes: Attributes) -> LineNode {
+        LineNode { attributes }
+    }
+}
+impl VirtualNode for LineNode {
+    fn to_markup(&self) -> String {
+        todo!()
+    }
 }

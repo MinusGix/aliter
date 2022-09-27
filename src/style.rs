@@ -36,6 +36,10 @@ impl StyleId {
             StyleId::SSc => true,
         }
     }
+
+    pub fn tight(&self) -> bool {
+        self.size() >= 2
+    }
 }
 
 pub(crate) const SUP: &[StyleId] = &[
