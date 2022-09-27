@@ -1,4 +1,7 @@
-use std::{fmt::Debug, num::ParseIntError, ops::Range};
+use std::{borrow::Cow, fmt::Debug, num::ParseIntError, ops::Range};
+
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 use crate::expander::Mode;
 
@@ -123,4 +126,59 @@ pub enum ArgType {
 pub(crate) fn first_ch_str(text: &str) -> Option<&str> {
     let ch = text.chars().next()?;
     Some(&text[0..ch.len_utf8()])
+}
+
+static ESCAPE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    const REGEX_TEXT: &str = r#"[&<>"'']"#;
+
+    Regex::new(REGEX_TEXT).unwrap()
+});
+
+// hyphenate and escape adapted from KaTeX which adapted them from Facebook's React under Apache 2 license
+
+/// Escapes text to prevent scripting attacks
+pub(crate) fn escape(text: &str) -> Cow<'_, str> {
+    ESCAPE_REGEX.replace_all(text, |caps: &regex::Captures| -> &'static str {
+        // I'm skeptical that this is the best method
+        if let Some(first) = caps.iter().next().flatten() {
+            match first.as_str() {
+                "&" => "&amp;",
+                ">" => "&gt;",
+                "<" => "&lt;",
+                "\"" => "&quot;",
+                "'" => "&#x27;",
+                _ => "",
+            }
+        } else {
+            // TODO: Warn that we replaced it with nothing
+            // I'm assuming that getting rid of the part of text entirely is better than keeping it
+            // since this is meant for security filtering
+            ""
+        }
+    })
+}
+
+static UPPERCASE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("([A-Z])").unwrap());
+
+pub(crate) fn hyphenate(text: &str) -> String {
+    UPPERCASE_REGEX.replace_all(text, "-$1").to_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::util::hyphenate;
+
+    use super::escape;
+
+    #[test]
+    fn test_text_util() {
+        // escape
+        assert_eq!(escape("abc test"), "abc test");
+        assert_eq!(escape("'hello'"), "&#x27;hello&#x27;");
+        assert_eq!(escape("test&other"), "test&amp;other");
+
+        // hyphenate
+        assert_eq!(hyphenate("testThing"), "test-thing");
+        assert_eq!(hyphenate("OTHER"), "-o-t-h-e-r");
+    }
 }
