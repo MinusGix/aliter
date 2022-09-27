@@ -972,7 +972,7 @@ impl<'a, 'f> Parser<'a, 'f> {
             return Ok(None);
         };
 
-        let url = URL_REGEX.replace(&res.content, "$1");
+        let url = URL_REGEX.replace_all(&res.content, "$1");
 
         Ok(Some(UrlNode {
             url: url.into_owned(),
