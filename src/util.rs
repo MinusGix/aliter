@@ -32,6 +32,14 @@ impl Debug for SourceLocation {
     }
 }
 
+/// This mimics JavaScript's `charCodeAt` function.  
+/// If the character is a surrogate pair, it will return just the first code point.
+pub(crate) fn char_code_for(ch: char) -> u16 {
+    let mut buf = [0, 0];
+    let ch = ch.encode_utf16(&mut buf);
+    ch[0]
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct RGBA {
     pub r: u8,
@@ -164,9 +172,14 @@ pub(crate) fn hyphenate(text: &str) -> String {
     UPPERCASE_REGEX.replace_all(text, "-$1").to_lowercase()
 }
 
+/// Find the value associated with a key in a slice of tuples. A poor hashmap.
+pub(crate) fn find_assoc_data<K: PartialEq, V>(data: &[(K, V)], key: K) -> Option<&V> {
+    data.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::util::hyphenate;
+    use crate::util::{char_code_for, hyphenate};
 
     use super::escape;
 
@@ -180,5 +193,16 @@ mod tests {
         // hyphenate
         assert_eq!(hyphenate("testThing"), "test-thing");
         assert_eq!(hyphenate("OTHER"), "-o-t-h-e-r");
+    }
+
+    #[test]
+    fn test_char_code_for() {
+        assert_eq!(char_code_for('a'), 97);
+        assert_eq!(char_code_for('A'), 65);
+        assert_eq!(char_code_for('0'), 48);
+        assert_eq!(char_code_for(' '), 32);
+        assert_eq!(char_code_for('😀'), 55357);
+        assert_eq!(char_code_for('é'), 233);
+        assert_eq!(char_code_for('𝕊'), 55349)
     }
 }

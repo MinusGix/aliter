@@ -1,6 +1,10 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::{parse_node::Color, tree::VirtualNode, util, Options};
+use crate::{
+    parse_node::Color,
+    tree::{DocumentFragment, VirtualNode},
+    util, Options,
+};
 
 // TODO: We could have so fields that are numbers have to be actual numbers?
 #[derive(Debug, Clone, Default)]
@@ -161,7 +165,7 @@ impl HtmlDomNode {
         mut style: CssStyle,
     ) -> HtmlDomNode {
         if let Some(options) = options {
-            if options.style.tight() {
+            if options.style.is_tight() {
                 classes.push("mtight".to_owned());
             }
 
@@ -227,11 +231,12 @@ impl WithHtmlDomNode for HtmlDomNode {
     }
 }
 
-// TODO: Katex exports
-// type DomSpan = Span<HtmlDomNode>
-// but that is probably more of a:
-// type DomSpan = Span<Box<dyn WithHtmlDomNode>>
+pub type DomSpan = Span<Box<dyn WithHtmlDomNode>>;
+// TODO: pub type SvgSpan
+// TODO: pub type SvgChildNode
+pub type DocumentFragmentNode = DocumentFragment<Box<dyn WithHtmlDomNode>>;
 
+#[derive(Debug, Clone)]
 pub struct Span<T: VirtualNode> {
     pub node: HtmlDomNode,
     pub children: Vec<T>,
@@ -251,6 +256,20 @@ impl<T: VirtualNode> Span<T> {
             children,
             attributes: Attributes::new(),
             width: None,
+        }
+    }
+}
+impl<T: WithHtmlDomNode + 'static> Span<T> {
+    pub fn into_dom_span(self) -> DomSpan {
+        Span {
+            node: self.node,
+            children: self
+                .children
+                .into_iter()
+                .map(|child| Box::new(child) as Box<dyn WithHtmlDomNode>)
+                .collect(),
+            attributes: self.attributes,
+            width: self.width,
         }
     }
 }
@@ -395,6 +414,32 @@ impl SymbolNode {
             skew: skew.unwrap_or(0.0),
             width: width.unwrap_or(0.0),
         }
+    }
+
+    pub fn new_text(text: String) -> SymbolNode {
+        Self::new(
+            text,
+            None,
+            None,
+            None,
+            None,
+            None,
+            ClassList::new(),
+            CssStyle::default(),
+        )
+    }
+
+    pub fn new_text_classes(text: String, classes: ClassList) -> SymbolNode {
+        Self::new(
+            text,
+            None,
+            None,
+            None,
+            None,
+            None,
+            classes,
+            CssStyle::default(),
+        )
     }
 }
 impl WithHtmlDomNode for SymbolNode {

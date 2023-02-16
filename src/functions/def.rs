@@ -37,6 +37,9 @@ pub fn add_functions(fns: &mut Functions) {
                 panic!()
             },
         ),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(
@@ -137,6 +140,9 @@ pub fn add_functions(fns: &mut Functions) {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
             })
         }),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(["\\def", "\\gdef", "\\edef", "\\xdef"].into_iter(), def);
@@ -162,6 +168,9 @@ pub fn add_functions(fns: &mut Functions) {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
             })
         }),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(["\\let", "\\\\globallet"].into_iter(), global_let);
@@ -191,6 +200,9 @@ pub fn add_functions(fns: &mut Functions) {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
             })
         }),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(["\\futurelet", "\\\\globalfuture"].into_iter(), future);

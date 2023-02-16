@@ -35,3 +35,11 @@ impl<T: VirtualNode> DocumentFragment<T> {
 
     // TODO: math node to text?
 }
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct EmptyNode;
+impl VirtualNode for EmptyNode {
+    fn to_markup(&self) -> String {
+        String::new()
+    }
+}

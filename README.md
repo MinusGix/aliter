@@ -15,6 +15,6 @@ Currently we do not use stable versions, as we expose internal parts of the API 
 
 ## License
   
-Obviously, since this is a rewrite of the KaTeX project, we inherit their license (MIT).
+Obviously, since this is a direct rewrite of the KaTeX project, we inherit their license (MIT).
 
-TODO: Can we license under APACHE and MIT? I feel like I remember something about APACHE being 'weaker' than MIT, and so it can just be applied on top? Is there actually any benefit to doing this?
+TODO: Can we license under APACHE and MIT? I feel like I remember something about APACHE being 'weaker' than MIT, and so it can just be applied on top? Is there actually any benefit to doing this beyond being a bit more consistent with the Rust ecosystem?

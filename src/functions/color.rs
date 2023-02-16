@@ -14,6 +14,9 @@ pub fn add_functions(fns: &mut Functions) {
             .with_allowed_in_text(true)
             .with_arg_types(&[ArgType::Color, ArgType::Original] as &[ArgType]),
         handler: Box::new(text_color_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert("\\textcolor".into(), text_color);
@@ -23,6 +26,9 @@ pub fn add_functions(fns: &mut Functions) {
             .with_allowed_in_text(true)
             .with_arg_types(&[ArgType::Color] as &[ArgType]),
         handler: Box::new(color_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert("\\color".into(), color);

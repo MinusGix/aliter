@@ -13,6 +13,9 @@ pub fn add_functions(fns: &mut Functions) {
             .with_allowed_in_text(true)
             .with_arg_types(&[ArgType::Size] as &[ArgType]),
         handler: Box::new(cr_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert("\\\\".into(), cr);

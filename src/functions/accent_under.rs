@@ -8,6 +8,9 @@ pub fn add_functions(fns: &mut Functions) {
     let accent_under = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::AccentUnder, 1),
         handler: Box::new(accent_under_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(ACCENT_UNDER_NAMES.iter().copied(), accent_under);

@@ -39,6 +39,9 @@ pub fn add_functions(fns: &mut Functions) {
     let arrow = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_opt_args(ParseNodeType::XArrow, 1, 1),
         handler: Box::new(arrow_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(ARROW_NAMES.iter().copied(), arrow);

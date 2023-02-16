@@ -1,3 +1,48 @@
+use crate::Options;
+
+/// Round `n` to 4 decimal places, or to the nearest 1/10,000th em.
+pub(crate) fn make_em(n: f64) -> String {
+    format!("{:.4}em", n)
+}
+
+/// Convert a size measurement into a CSS em value for the current style/scale
+pub(crate) fn calculate_size(size_val: &Measurement, options: &Options) -> f64 {
+    let font_metrics = options.font_metrics();
+    let scale = if let Some(pt_per_unit) = size_val.unit_pt_size() {
+        // Convert pt to css em
+        let css_em = pt_per_unit / font_metrics.pt_per_em;
+        // Unscale to make absolute units
+        css_em / options.size_multiplier()
+    } else if let Measurement::Mu(mu) = &size_val {
+        // 'mu' units scale with scriptstyle/scriptscriptstyle
+        font_metrics.css_em_per_mu
+    } else {
+        // Other relative units always refer ot the textstyle font in the current size
+        let unit_options = if options.style.is_tight() {
+            options.having_style(options.style.text())
+        } else {
+            None
+        };
+        let unit_options = unit_options.as_ref().unwrap_or(options);
+        let unit_font_metrics = unit_options.font_metrics();
+
+        let scale = match size_val {
+            Measurement::Ex(_) => unit_font_metrics.x_height,
+            Measurement::Em(_) => unit_font_metrics.quad,
+            // TODO: Don't panic
+            _ => panic!("Invalid unit: '{:?}'", size_val),
+        };
+
+        if unit_options == options {
+            scale
+        } else {
+            scale * unit_options.size_multiplier() / options.size_multiplier()
+        }
+    };
+
+    (size_val.num() * scale).min(options.max_size as f64)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Measurement {
     Pt(Pt),
@@ -62,6 +107,24 @@ impl Measurement {
             "mu" => Measurement::Mu(Mu(v)),
 
             _ => return None,
+        })
+    }
+
+    pub fn unit_pt_size(&self) -> Option<f64> {
+        Some(match self {
+            Measurement::Pt(_) => Pt::unit_pt_size(),
+            Measurement::Mm(_) => Mm::unit_pt_size(),
+            Measurement::Cm(_) => Cm::unit_pt_size(),
+            Measurement::In(_) => In::unit_pt_size(),
+            Measurement::Bp(_) => Bp::unit_pt_size(),
+            Measurement::Pc(_) => Pc::unit_pt_size(),
+            Measurement::Dd(_) => Dd::unit_pt_size(),
+            Measurement::Cc(_) => Cc::unit_pt_size(),
+            Measurement::Nd(_) => Nd::unit_pt_size(),
+            Measurement::Nc(_) => Nc::unit_pt_size(),
+            Measurement::Sp(_) => Sp::unit_pt_size(),
+            Measurement::Px(_) => Px::unit_pt_size(),
+            Measurement::Ex(_) | Measurement::Em(_) | Measurement::Mu(_) => return None,
         })
     }
 }

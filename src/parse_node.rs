@@ -147,6 +147,68 @@ impl ParseNode {
             _ => None,
         }
     }
+
+    pub fn typ(&self) -> ParseNodeType {
+        match self {
+            ParseNode::Array(_) => ParseNodeType::Array,
+            ParseNode::CdLabel(_) => ParseNodeType::CdLabel,
+            ParseNode::CdLabelParentNode(_) => ParseNodeType::CdLabelParentNode,
+            ParseNode::Color(_) => ParseNodeType::Color,
+            ParseNode::ColorToken(_) => ParseNodeType::ColorToken,
+            ParseNode::Op(_) => ParseNodeType::Op,
+            ParseNode::OrdGroup(_) => ParseNodeType::OrdGroup,
+            ParseNode::Raw(_) => ParseNodeType::Raw,
+            ParseNode::Size(_) => ParseNodeType::Size,
+            ParseNode::Styling(_) => ParseNodeType::Styling,
+            ParseNode::SupSub(_) => ParseNodeType::SupSub,
+            ParseNode::Tag(_) => ParseNodeType::Tag,
+            ParseNode::Text(_) => ParseNodeType::Text,
+            ParseNode::Url(_) => ParseNodeType::Url,
+            ParseNode::Verb(_) => ParseNodeType::Verb,
+            ParseNode::Atom(_) => ParseNodeType::Atom,
+            ParseNode::MathOrd(_) => ParseNodeType::MathOrd,
+            ParseNode::Spacing(_) => ParseNodeType::Spacing,
+            ParseNode::TextOrd(_) => ParseNodeType::TextOrd,
+            ParseNode::AccentToken(_) => ParseNodeType::AccentToken,
+            ParseNode::OpToken(_) => ParseNodeType::OpToken,
+            ParseNode::Accent(_) => ParseNodeType::Accent,
+            ParseNode::AccentUnder(_) => ParseNodeType::AccentUnder,
+            ParseNode::Cr(_) => ParseNodeType::Cr,
+            ParseNode::DelimSizing(_) => ParseNodeType::DelimSizing,
+            ParseNode::Enclose(_) => ParseNodeType::Enclose,
+            ParseNode::Environment(_) => ParseNodeType::Environment,
+            ParseNode::Font(_) => ParseNodeType::Font,
+            ParseNode::GenFrac(_) => ParseNodeType::GenFrac,
+            ParseNode::HBox(_) => ParseNodeType::HBox,
+            ParseNode::HorizBrace(_) => ParseNodeType::HorizBrace,
+            ParseNode::Href(_) => ParseNodeType::Href,
+            ParseNode::Html(_) => ParseNodeType::Html,
+            ParseNode::HtmlMathML(_) => ParseNodeType::HtmlMathML,
+            ParseNode::IncludeGraphics(_) => ParseNodeType::IncludeGraphics,
+            ParseNode::Infix(_) => ParseNodeType::Infix,
+            ParseNode::Internal(_) => ParseNodeType::Internal,
+            ParseNode::Kern(_) => ParseNodeType::Kern,
+            ParseNode::Lap(_) => ParseNodeType::Lap,
+            ParseNode::LeftRight(_) => ParseNodeType::LeftRight,
+            ParseNode::LeftRightRight(_) => ParseNodeType::LeftRightRight,
+            ParseNode::MathChoice(_) => ParseNodeType::MathChoice,
+            ParseNode::Middle(_) => ParseNodeType::Middle,
+            ParseNode::MClass(_) => ParseNodeType::MClass,
+            ParseNode::OperatorName(_) => ParseNodeType::OperatorName,
+            ParseNode::Overline(_) => ParseNodeType::Overline,
+            ParseNode::Phantom(_) => ParseNodeType::Phantom,
+            ParseNode::HPhantom(_) => ParseNodeType::HPhantom,
+            ParseNode::VPhantomNode(_) => ParseNodeType::VPhantomNode,
+            ParseNode::RaiseBox(_) => ParseNodeType::RaiseBox,
+            ParseNode::Rule(_) => ParseNodeType::Rule,
+            ParseNode::Sizing(_) => ParseNodeType::Sizing,
+            ParseNode::Smash(_) => ParseNodeType::Smash,
+            ParseNode::Sqrt(_) => ParseNodeType::Sqrt,
+            ParseNode::Underline(_) => ParseNodeType::Underline,
+            ParseNode::VCenter(_) => ParseNodeType::VCenter,
+            ParseNode::XArrow(_) => ParseNodeType::XArrow,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,7 +331,9 @@ pub struct ColorNode {
     pub info: NodeInfo,
     pub body: Vec<ParseNode>,
 }
-#[derive(Debug, Clone)]
+/// Note: The [`PartialEq`] impl does not consider equivalencies like
+/// `RGB([5, 9, 2]) == RGBA([5, 9, 2, 0xff])`
+#[derive(Debug, Clone, PartialEq)]
 pub enum Color {
     RGB([u8; 3]),
     RGBA([u8; 4]),

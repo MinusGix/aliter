@@ -45,6 +45,9 @@ fn add_accents(fns: &mut Functions) {
     let accent = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Accent, 1),
         handler: Box::new(accent_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(ACCENT_NAMES.iter().copied(), accent);
@@ -104,6 +107,9 @@ fn add_text_mode_accents(fns: &mut Functions) {
             .with_allowed_in_math(true)
             .with_arg_types(&[ArgType::Primitive] as &[ArgType]),
         handler: Box::new(text_mode_accent_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(TEXT_MODE_ACCENT_NAMES.iter().copied(), accent);

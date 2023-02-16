@@ -3,12 +3,14 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
 
 use crate::{
+    dom_tree::WithHtmlDomNode,
     environments::cd,
     expander::BreakToken,
     lexer::Token,
     parse_node::{ParseNode, ParseNodeType},
     parser::Parser,
     util::ArgType,
+    Options,
 };
 
 pub mod accent;
@@ -60,6 +62,16 @@ impl Functions {
         for name in names {
             self.insert(Cow::Borrowed(name), spec.clone())
         }
+    }
+
+    pub fn find_html_builder_for_type(&self, typ: ParseNodeType) -> Option<&HtmlBuilderFn> {
+        for spec in self.fns.values() {
+            if spec.prop.typ == typ {
+                return spec.html_builder.as_ref();
+            }
+        }
+
+        None
     }
 }
 
@@ -150,10 +162,15 @@ impl FunctionPropSpec {
     }
 }
 
+pub type HtmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> Box<dyn WithHtmlDomNode>>;
+
 pub struct FunctionSpec {
     pub prop: FunctionPropSpec,
     /// (context, args, opt_args)
     pub handler: Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>,
+    #[cfg(feature = "html")]
+    pub html_builder: Option<HtmlBuilderFn>,
+    // TODO: mathml
 }
 
 pub fn normalize_argument(arg: ParseNode) -> ParseNode {

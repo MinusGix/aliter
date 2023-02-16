@@ -9,6 +9,9 @@ pub fn add_functions(fns: &mut Functions) {
     let cd = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::CdLabel, 1),
         handler: Box::new(cd_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert_for_all_str(CD_NAMES.iter().copied(), cd);
@@ -16,6 +19,9 @@ pub fn add_functions(fns: &mut Functions) {
     let cd_label = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::CdLabelParentNode, 1),
         handler: Box::new(cd_label_parent_handler),
+        // TODO:
+        #[cfg(feature = "html")]
+        html_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\\\cdparent"), cd_label);

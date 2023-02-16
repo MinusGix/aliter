@@ -1,4 +1,10 @@
-use crate::{parse_node::ParseNode, Options};
+use crate::{
+    build_common::{make_span, make_span_s},
+    dom_tree::{ClassList, CssStyle, DomSpan, WithHtmlDomNode},
+    functions,
+    parse_node::ParseNode,
+    Options,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum RealGroup {
@@ -49,16 +55,54 @@ pub(crate) fn build_expression(
 }
 
 pub(crate) fn build_group(
-    group: Option<ParseNode>,
+    group: Option<&ParseNode>,
     options: &Options,
     base_options: Option<&Options>,
-) {
-    let group = if let Some(group) = group {
-        group
-    } else {
-        todo!()
-        // return make_span();
+) -> Box<dyn WithHtmlDomNode> {
+    let Some(group) = group else {
+        return Box::new(make_span::<Box<dyn WithHtmlDomNode>>(
+            ClassList::new(),
+            Vec::new(),
+            None,
+            CssStyle::default(),
+        ));
     };
 
-    todo!()
+    if let Some(html_builder) = functions::FUNCTIONS.find_html_builder_for_type(group.typ()) {
+        let group_node = html_builder(group, options);
+
+        // If the size changed between the parent and the current group, account for that size
+        // difference
+        if let Some(base_options) = base_options {
+            if options.size != base_options.size {
+                let mut group_node = make_span(
+                    options.sizing_classes(base_options),
+                    vec![group_node],
+                    Some(options),
+                    CssStyle::default(),
+                );
+
+                let mult = options.size_multiplier() / base_options.size_multiplier();
+
+                group_node.node.height *= mult;
+                group_node.node.depth *= mult;
+
+                return Box::new(group_node);
+            }
+        }
+
+        group_node
+    } else {
+        panic!("Got group of unknown type");
+    }
+}
+
+pub(crate) fn make_null_delimiter(options: &Options, classes: ClassList) -> DomSpan {
+    let classes = options
+        .base_sizing_classes()
+        .into_iter()
+        .chain(["nulldelimiter".to_string()])
+        .chain(classes)
+        .collect::<ClassList>();
+    make_span_s(classes, Vec::new())
 }

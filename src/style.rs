@@ -1,4 +1,5 @@
 #[repr(u8)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub enum StyleId {
     D = 0,
     Dc = 1,
@@ -10,6 +11,10 @@ pub enum StyleId {
     SSc = 7,
 }
 impl StyleId {
+    pub fn as_id(&self) -> u8 {
+        *self as u8
+    }
+
     // TODO: is this a float
     pub fn size(&self) -> usize {
         match self {
@@ -37,7 +42,35 @@ impl StyleId {
         }
     }
 
-    pub fn tight(&self) -> bool {
+    /// Get the style of a superscript given a base in the current style.
+    pub fn sup(&self) -> StyleId {
+        SUP[self.as_id() as usize]
+    }
+
+    /// Get the style of a subscript given a base in the current style.
+    pub fn sub(&self) -> StyleId {
+        SUB[self.as_id() as usize]
+    }
+
+    /// The style of a fraction numerator given the fraction in the current style.
+    pub fn frac_num(&self) -> StyleId {
+        FRACNUM[self.as_id() as usize]
+    }
+
+    /// The style of a fraction denominator given the fraction in the current style.
+    pub fn frac_den(&self) -> StyleId {
+        FRACDEN[self.as_id() as usize]
+    }
+
+    pub fn cramp(&self) -> StyleId {
+        CRAMP[self.as_id() as usize]
+    }
+
+    pub fn text(&self) -> StyleId {
+        TEXT[self.as_id() as usize]
+    }
+
+    pub fn is_tight(&self) -> bool {
         self.size() >= 2
     }
 }
