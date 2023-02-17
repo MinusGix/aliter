@@ -151,6 +151,41 @@ pub enum ArgType {
     Mode(Mode),
 }
 
+/// Math font variants
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FontVariant {
+    Bold,
+    BoldItalic,
+    BoldSansSerif,
+    DoubleStruck,
+    Fraktur,
+    Italic,
+    Monospace,
+    Normal,
+    SansSerif,
+    SansSerifBoldItalic,
+    SansSerifItalic,
+    Script,
+}
+impl FontVariant {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FontVariant::Bold => "bold",
+            FontVariant::BoldItalic => "bold-italic",
+            FontVariant::BoldSansSerif => "bold-sans-serif",
+            FontVariant::DoubleStruck => "double-struck",
+            FontVariant::Fraktur => "fraktur",
+            FontVariant::Italic => "italic",
+            FontVariant::Monospace => "monospace",
+            FontVariant::Normal => "normal",
+            FontVariant::SansSerif => "sans-serif",
+            FontVariant::SansSerifBoldItalic => "sans-serif-bold-italic",
+            FontVariant::SansSerifItalic => "sans-serif-italic",
+            FontVariant::Script => "script",
+        }
+    }
+}
+
 /// Get the first character of the str as a &str, if it can  
 /// This is often used because in JS, all characters are strings
 /// and so some of our apis accept `&str` but don't accept `char`

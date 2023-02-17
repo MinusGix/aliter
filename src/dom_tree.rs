@@ -224,8 +224,12 @@ impl From<EmptyNode> for HtmlNode {
         HtmlNode::Empty(node)
     }
 }
-impl From<DocumentFragment<HtmlNode>> for HtmlNode {
-    fn from(node: DocumentFragment<HtmlNode>) -> Self {
+impl<T: VirtualNode> From<DocumentFragment<T>> for HtmlNode
+where
+    HtmlNode: From<T>,
+{
+    fn from(node: DocumentFragment<T>) -> Self {
+        let node = node.using_html_node();
         HtmlNode::DocumentFragment(node)
     }
 }
@@ -300,6 +304,17 @@ impl<T: VirtualNode> DocumentFragment<T> {
     }
 
     // TODO: math node to text?
+}
+impl<T: VirtualNode> DocumentFragment<T>
+where
+    HtmlNode: From<T>,
+{
+    pub fn using_html_node(self) -> DocumentFragment<HtmlNode> {
+        DocumentFragment {
+            node: self.node,
+            children: self.children.into_iter().map(HtmlNode::from).collect(),
+        }
+    }
 }
 impl<T: VirtualNode> VirtualNode for DocumentFragment<T> {
     fn to_markup(&self) -> String {

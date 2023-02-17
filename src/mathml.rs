@@ -1,12 +1,16 @@
+use std::any::{Any, TypeId};
+
 use crate::{
+    build_common::FONT_MAP,
     expander::Mode,
+    font_metrics::get_character_metrics,
     functions,
     mathml_tree::{EmptyMathNode, MathNode, MathNodeType, MathmlNode, TextNode, WithMathDomNode},
-    parse_node::ParseNode,
+    parse_node::{ParseNode, SymbolParseNode, TextOrdNode},
     symbols::{self, LIGATURES},
     tree::ClassList,
-    util::char_code_for,
-    Options,
+    util::{char_code_for, find_assoc_data, FontVariant},
+    FontShape, FontWeight, Options,
 };
 
 /// Takes a symbol and converts it into a MathML text node after performing optional replacement
@@ -47,7 +51,82 @@ where
     }
 }
 
-// TODO: get_variant
+/// Returns the math variant, or `None` if none is required.
+pub(crate) fn get_variant<G: SymbolParseNode + Any + 'static>(
+    group: &G,
+    options: &Options,
+) -> Option<FontVariant> {
+    // Handle \text... font specifiers as best we can.
+    // MathML has a limited list of allowable mathvariant specifiers; see
+    // https://www.w3.org/TR/MathML3/chapter3.html#presm.commatt
+    if options.font_family == "texttt" {
+        return Some(FontVariant::Monospace);
+    } else if options.font_family == "textsf" {
+        if options.font_shape == Some(FontShape::TextIt)
+            && options.font_weight == Some(FontWeight::TextBf)
+        {
+            return Some(FontVariant::SansSerifBoldItalic);
+        } else if options.font_shape == Some(FontShape::TextIt) {
+            return Some(FontVariant::SansSerifItalic);
+        } else if options.font_weight == Some(FontWeight::TextBf) {
+            return Some(FontVariant::BoldSansSerif);
+        } else {
+            return Some(FontVariant::SansSerif);
+        }
+    } else if options.font_shape == Some(FontShape::TextIt)
+        && options.font_weight == Some(FontWeight::TextBf)
+    {
+        return Some(FontVariant::BoldItalic);
+    } else if options.font_shape == Some(FontShape::TextIt) {
+        return Some(FontVariant::Italic);
+    } else if options.font_weight == Some(FontWeight::TextBf) {
+        return Some(FontVariant::Bold);
+    }
+
+    let font = &options.font;
+
+    if font.is_empty() || font == "mathnormal" {
+        return None;
+    }
+
+    // let mode = group.mode;
+    match font.as_ref() {
+        "mathit" => return Some(FontVariant::Italic),
+        "boldsymbol" => {
+            if group.type_id() == TypeId::of::<TextOrdNode>() {
+                return Some(FontVariant::Bold);
+            } else {
+                return Some(FontVariant::BoldItalic);
+            }
+        }
+        "mathbf" => return Some(FontVariant::Bold),
+        "mathbb" => return Some(FontVariant::DoubleStruck),
+        "mathfrak" => return Some(FontVariant::Fraktur),
+        // MathML makes no distinction between script and caligraphic
+        "mathscr" | "mathcal" => return Some(FontVariant::Script),
+        "mathsf" => return Some(FontVariant::SansSerif),
+        "mathtt" => return Some(FontVariant::Monospace),
+        _ => {}
+    }
+
+    let text = group.text();
+    if text == "\\imath" || text == "\\jmath" {
+        return None;
+    }
+
+    let mode = group.info().mode;
+
+    let replace = symbols::SYMBOLS.get(mode, text).and_then(|s| s.replace);
+    let text = replace.unwrap_or(text);
+    let text_char = text.chars().nth(0).unwrap();
+
+    let font_data = find_assoc_data(FONT_MAP, font).unwrap();
+    if get_character_metrics(text_char, font_data.font, mode).is_some() {
+        return Some(font_data.variant);
+    }
+
+    None
+}
 
 pub(crate) fn build_expression(
     expression: Vec<ParseNode>,

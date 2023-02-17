@@ -49,11 +49,27 @@ pub enum FontWeight {
     TextBf,
     TextMd,
 }
+impl FontWeight {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FontWeight::TextBf => "textbf",
+            FontWeight::TextMd => "textmd",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FontShape {
     TextIt,
     TextUp,
+}
+impl FontShape {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FontShape::TextIt => "textit",
+            FontShape::TextUp => "textup",
+        }
+    }
 }
 
 const SIZE_STYLE_MAP: [[u8; 3]; 11] = [

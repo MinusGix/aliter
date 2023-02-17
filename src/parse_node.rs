@@ -272,14 +272,64 @@ pub enum ParseNodeType {
     XArrow,
 }
 
-#[derive(Debug, Clone)]
-pub enum SymbolParseNode {
-    Atom(AtomNode),
-    AccentToken(AccentTokenNode),
-    MathOrd(MathOrdNode),
-    OpToken(OpTokenNode),
-    Spacing(SpacingNode),
-    TextOrd(TextOrdNode),
+pub trait SymbolParseNode {
+    fn text(&self) -> &str;
+
+    fn info(&self) -> &NodeInfo;
+}
+impl SymbolParseNode for AtomNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl SymbolParseNode for AccentTokenNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl SymbolParseNode for MathOrdNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl SymbolParseNode for OpTokenNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl SymbolParseNode for SpacingNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl SymbolParseNode for TextOrdNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 
 pub type UnsupportedCmdParseNode = ColorNode;

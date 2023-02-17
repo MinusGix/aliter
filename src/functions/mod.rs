@@ -26,11 +26,13 @@ pub mod cr;
 pub mod def;
 pub mod genfrac;
 pub mod href;
+pub mod symbols_ord;
 
 // TODO: Put specific function groups under features? Eh
 pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     let mut fns = Functions {
         fns: HashMap::new(),
+        builders: Vec::new(),
     };
 
     accent::add_functions(&mut fns);
@@ -43,6 +45,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     def::add_functions(&mut fns);
     genfrac::add_functions(&mut fns);
     href::add_functions(&mut fns);
+    symbols_ord::add_functions(&mut fns);
 
     fns
 });
@@ -50,6 +53,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
 #[derive(Clone)]
 pub struct Functions {
     fns: HashMap<Cow<'static, str>, Arc<FunctionSpec>>,
+    pub builders: Vec<Arc<BuilderFunctionSpec>>,
 }
 impl Functions {
     pub fn get(&self, name: &str) -> Option<&Arc<FunctionSpec>> {
@@ -70,8 +74,21 @@ impl Functions {
         }
     }
 
+    /// Use this to register only the HTML/MathML builders for a function.
+    pub fn insert_builder(&mut self, spec: Arc<BuilderFunctionSpec>) {
+        assert_eq!(spec.prop.num_args, 0);
+        self.builders.push(spec);
+    }
+
     pub fn find_html_builder_for_type(&self, typ: ParseNodeType) -> Option<&HtmlBuilderFn> {
         for spec in self.fns.values() {
+            if spec.prop.typ == typ && spec.html_builder.is_some() {
+                return spec.html_builder.as_ref();
+            }
+        }
+
+        // Check the builder functions
+        for spec in &self.builders {
             if spec.prop.typ == typ {
                 return spec.html_builder.as_ref();
             }
@@ -82,6 +99,13 @@ impl Functions {
 
     pub fn find_mathml_builder_for_type(&self, typ: ParseNodeType) -> Option<&MathmlBuilderFn> {
         for spec in self.fns.values() {
+            if spec.prop.typ == typ && spec.mathml_builder.is_some() {
+                return spec.mathml_builder.as_ref();
+            }
+        }
+
+        // Check the builder functions
+        for spec in &self.builders {
             if spec.prop.typ == typ {
                 return spec.mathml_builder.as_ref();
             }
@@ -187,6 +211,14 @@ pub struct FunctionSpec {
     pub prop: FunctionPropSpec,
     /// (context, args, opt_args)
     pub handler: Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>,
+    #[cfg(feature = "html")]
+    pub html_builder: Option<HtmlBuilderFn>,
+    #[cfg(feature = "mathml")]
+    pub mathml_builder: Option<MathmlBuilderFn>,
+}
+
+pub struct BuilderFunctionSpec {
+    pub prop: FunctionPropSpec,
     #[cfg(feature = "html")]
     pub html_builder: Option<HtmlBuilderFn>,
     #[cfg(feature = "mathml")]
