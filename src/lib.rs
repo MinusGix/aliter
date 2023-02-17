@@ -370,7 +370,7 @@ pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::Span<dom
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_tree, parser::ParserConfig};
+    use crate::{parse_tree, parser::ParserConfig, render_to_html_tree, tree::VirtualNode};
 
     #[test]
     fn test_parse_tree() {
@@ -394,5 +394,16 @@ mod tests {
 
         let basic_frac = parse_tree(r#"\frac{3}{9}"#, conf.clone()).unwrap();
         dbg!(basic_frac);
+    }
+
+    #[test]
+    fn test_render_to_html_tree() {
+        let conf = ParserConfig::default();
+
+        let simple_num = render_to_html_tree("4", conf.clone());
+        // dbg!(simple_num);
+        dbg!(simple_num.to_markup());
+
+        panic!();
     }
 }

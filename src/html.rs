@@ -452,7 +452,7 @@ pub(crate) fn build_group(
 
         group_node
     } else {
-        panic!("Got group of unknown type");
+        panic!("Got group of unknown type: {:?}", group.typ());
     }
 }
 
