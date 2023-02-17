@@ -7,6 +7,7 @@ use crate::{
     environments::cd,
     expander::BreakToken,
     lexer::Token,
+    mathml_tree::WithMathDomNode,
     parse_node::{ParseNode, ParseNodeType},
     parser::Parser,
     util::ArgType,
@@ -68,6 +69,16 @@ impl Functions {
         for spec in self.fns.values() {
             if spec.prop.typ == typ {
                 return spec.html_builder.as_ref();
+            }
+        }
+
+        None
+    }
+
+    pub fn find_mathml_builder_for_type(&self, typ: ParseNodeType) -> Option<&MathmlBuilderFn> {
+        for spec in self.fns.values() {
+            if spec.prop.typ == typ {
+                return spec.mathml_builder.as_ref();
             }
         }
 
@@ -162,7 +173,10 @@ impl FunctionPropSpec {
     }
 }
 
+#[cfg(feature = "html")]
 pub type HtmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> Box<dyn WithHtmlDomNode>>;
+#[cfg(feature = "mathml")]
+pub type MathmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> Box<dyn WithMathDomNode>>;
 
 pub struct FunctionSpec {
     pub prop: FunctionPropSpec,
@@ -170,7 +184,8 @@ pub struct FunctionSpec {
     pub handler: Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>,
     #[cfg(feature = "html")]
     pub html_builder: Option<HtmlBuilderFn>,
-    // TODO: mathml
+    #[cfg(feature = "mathml")]
+    pub mathml_builder: Option<MathmlBuilderFn>,
 }
 
 pub fn normalize_argument(arg: ParseNode) -> ParseNode {

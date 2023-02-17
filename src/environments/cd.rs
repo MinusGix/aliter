@@ -12,6 +12,9 @@ pub fn add_functions(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(CD_NAMES.iter().copied(), cd);
@@ -22,6 +25,9 @@ pub fn add_functions(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\\\cdparent"), cd_label);

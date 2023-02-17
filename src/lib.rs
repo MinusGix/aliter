@@ -26,6 +26,7 @@ pub mod functions;
 pub mod html;
 pub mod lexer;
 pub mod macr;
+pub mod mathml;
 #[cfg(feature = "mathml")]
 pub mod mathml_tree;
 pub mod namespace;

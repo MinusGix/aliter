@@ -48,6 +48,9 @@ fn add_accents(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(ACCENT_NAMES.iter().copied(), accent);
@@ -110,6 +113,9 @@ fn add_text_mode_accents(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(TEXT_MODE_ACCENT_NAMES.iter().copied(), accent);

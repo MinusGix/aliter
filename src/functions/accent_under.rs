@@ -11,6 +11,9 @@ pub fn add_functions(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(ACCENT_UNDER_NAMES.iter().copied(), accent_under);

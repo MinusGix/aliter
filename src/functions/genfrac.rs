@@ -24,6 +24,9 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(GENFRAC_NAMES.iter().copied(), genfrac);
@@ -33,6 +36,9 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_cfrac_handler),
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\cfrac"), gen_cfrac);
@@ -42,6 +48,9 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(infix_handler),
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert_for_all_str(INFIX_NAMES.iter().copied(), infix);
@@ -60,6 +69,9 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac2_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\genfrac"), genfrac2);
@@ -72,6 +84,9 @@ pub fn add_functions(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\above"), infix_above);
@@ -86,6 +101,9 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_abovefrac_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
+        // TODO
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
     });
 
     fns.insert(Cow::Borrowed("\\\\abovefrac"), genfrac_abovefrac);
@@ -573,14 +591,20 @@ fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode>
 
 #[cfg(feature = "mathml")]
 fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
+    use crate::{
+        mathml,
+        mathml_tree::{MathNode, MathNodeType},
+        tree::ClassList,
+    };
+
     let ParseNode::GenFrac(group) = node else {
         // TODO: Don't panic
         panic!()
     };
 
-    // let node = MathNode::new("mfrac".to_string(), vec![
-
-    // ]);
+    let numer = mathml::build_group(Some(&group.numer), options);
+    let denom = mathml::build_group(Some(&group.denom), options);
+    let node = MathNode::new(MathNodeType::MFrac, vec![numer, denom], ClassList::new());
 
     todo!()
 }
