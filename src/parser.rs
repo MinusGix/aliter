@@ -246,6 +246,7 @@ impl<'a, 'f> Parser<'a, 'f> {
         self.next_token.as_ref()
     }
 
+    /// Switch the current mode
     pub(crate) fn switch_mode(&mut self, mode: Mode) {
         self.gullet.switch_mode(mode);
     }
@@ -257,6 +258,8 @@ impl<'a, 'f> Parser<'a, 'f> {
         }
     }
 
+    /// Main parsing function, which parses an entire input.  
+    /// You may wish to use [`dispatch_parse`] instead.  
     pub fn parse<const IS_MATH_MODE: bool>(&mut self) -> Result<Vec<ParseNode>, ParseError> {
         if !self.conf.global_group {
             // Create a group namespace for the math expression
@@ -279,6 +282,8 @@ impl<'a, 'f> Parser<'a, 'f> {
                         self.gullet.end_group();
                     }
 
+                    self.gullet.end_groups();
+
                     return Ok(result);
                 }
                 Err(err) => err,
@@ -292,6 +297,8 @@ impl<'a, 'f> Parser<'a, 'f> {
         Err(err)
     }
 
+    /// Fully parse a separate sequence of tokens as a separate job.  
+    /// Tokens should be specified in reverse order, as in a macro definition.
     pub(crate) fn sub_parse(
         &mut self,
         tokens: impl Iterator<Item = Token<'a>>,
@@ -311,6 +318,10 @@ impl<'a, 'f> Parser<'a, 'f> {
         Ok(parse)
     }
 
+    /// Dispatches the parse expression logic based on the mode, so that we can have two
+    /// versions of the parse expression logic, one for math mode and one for text mode.  
+    /// This is a minor perf opt, though it hasn't been checked for significance. However,
+    /// it is also likely to be an insignicant slowdown to monomorphize the function.
     pub(crate) fn dispatch_parse_expression(
         &mut self,
         break_on_infix: bool,
@@ -322,9 +333,10 @@ impl<'a, 'f> Parser<'a, 'f> {
         }
     }
 
-    /// `break_on_infix`: Whether the parsing should stop when it finds an infix node.
+    /// Parses an "expression", which is a list of atoms.  
+    /// `break_on_infix`: Whether the parsing should stop when it finds an infix node.  
     /// `break_on_token_text`: The text of the token that the expression should end with
-    ///     or `None` if something else should end the expression
+    ///     or `None` if something else should end the expression  
     pub fn parse_expression<const IS_MATH_MODE: bool>(
         &mut self,
         break_on_infix: bool,
@@ -379,6 +391,10 @@ impl<'a, 'f> Parser<'a, 'f> {
         self.handle_infix_nodes(body)
     }
 
+    /// Rewrites infix operators such as `\over` with corresponding commands such as `\frac`.  
+    ///
+    /// There can only be one infix operator per group. If there is more than one then the
+    /// expression is ambiguous. This can be resolved by adding `{}`.
     fn handle_infix_nodes(&mut self, body: Vec<ParseNode>) -> Result<Vec<ParseNode>, ParseError> {
         let mut over_index = None;
         let mut func_name = None;
@@ -395,6 +411,7 @@ impl<'a, 'f> Parser<'a, 'f> {
         }
 
         if let Some(over_index) = over_index {
+            // TODO: katex techncailly checks truthiness of this before doing this logic, which would have empty func names count as false
             let func_name = func_name.unwrap();
 
             let numer_body = &body[0..over_index];
@@ -442,7 +459,7 @@ impl<'a, 'f> Parser<'a, 'f> {
         }
     }
 
-    /// Handle a subscript or superscript with nice errors
+    /// Handle a subscript or superscript
     fn handle_sup_subscript(&mut self, name: &str) -> Result<ParseNode, ParseError> {
         let _symbol_token = self.fetch()?;
 
@@ -485,6 +502,8 @@ impl<'a, 'f> Parser<'a, 'f> {
         &mut self,
         break_on_token_text: Option<BreakToken>,
     ) -> Result<Option<ParseNode>, ParseError> {
+        // The body of an atom is an implicit group, so that thingsl ike `\left(x\right)^2` work
+        // correctly.
         let mut base = self.parse_group("atom", break_on_token_text)?;
 
         // There are no superscripts or subscripts in text mode
@@ -1006,6 +1025,7 @@ impl<'a, 'f> Parser<'a, 'f> {
 
         let expression = self.dispatch_parse_expression(false, Some(BreakToken::EOF))?;
         self.expect_eof()?;
+        self.gullet.end_group();
 
         let ord = OrdGroupNode {
             body: expression,
