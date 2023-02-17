@@ -52,11 +52,11 @@ pub struct RGBA {
     pub a: u8,
 }
 impl RGBA {
-    pub fn new(r: u8, g: u8, b: u8, a: u8) -> RGBA {
+    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> RGBA {
         RGBA { r, g, b, a }
     }
 
-    pub fn into_array(self) -> [u8; 4] {
+    pub const fn into_array(self) -> [u8; 4] {
         [self.r, self.g, self.b, self.a]
     }
 }

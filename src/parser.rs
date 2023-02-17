@@ -163,7 +163,7 @@ impl Default for ParserConfig {
 pub enum StrictMode {
     /// Log errors
     Warn,
-    /// Error ou the KaTeX statement
+    /// Error on the KaTeX statement
     Error,
     // TODO: function callback version
 }

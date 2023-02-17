@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AlignSpec {
     Separator(Cow<'static, str>),
     Align {
@@ -12,7 +12,7 @@ pub enum AlignSpec {
 }
 
 /// Indicate column separation in MathML
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ColSeparationType {
     Align,
     AlignAt,
