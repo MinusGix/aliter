@@ -36,9 +36,10 @@ pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> 
 // TODO: this should be able to avoid boxing
 /// Wrap the given array of notes in an `<mrow>` node if needed, i.e., unless the array has length
 /// 1. Always returns a single node.
-pub(crate) fn make_row(body: Vec<Box<dyn WithMathDomNode>>) -> Box<dyn WithMathDomNode> {
+pub(crate) fn make_row<T: WithMathDomNode + 'static>(body: Vec<T>) -> Box<dyn WithMathDomNode> {
     if body.len() == 1 {
-        body[0]
+        let val = body.into_iter().nth(0).unwrap();
+        Box::new(val)
     } else {
         Box::new(MathNode::new(MathNodeType::MRow, body, ClassList::new()))
     }

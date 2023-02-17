@@ -152,12 +152,17 @@ impl<T: WithMathDomNode> MathNode<T> {
         MathNode::new(typ, Vec::new(), ClassList::new())
     }
 
-    pub fn set_attribute(&mut self, key: String, value: String) {
-        self.attributes.insert(key, value);
+    pub fn set_attribute(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.attributes.insert(key.into(), value.into());
     }
 
     pub fn get_attribute(&self, key: &str) -> Option<&str> {
         self.attributes.get(key).map(String::as_str)
+    }
+
+    pub fn with_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.set_attribute(key, value);
+        self
     }
 
     // TODO: into_node

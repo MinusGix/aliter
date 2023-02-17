@@ -1,9 +1,13 @@
 use std::{borrow::Cow, sync::Arc};
 
+#[cfg(feature = "html")]
+use crate::dom_tree::WithHtmlDomNode;
+#[cfg(feature = "mathml")]
+use crate::mathml_tree::WithMathDomNode;
 use crate::{
     build_common::{make_line_span, make_span, make_v_list, VListElemShift, VListParam},
     delimiter,
-    dom_tree::{CssStyle, WithHtmlDomNode},
+    dom_tree::CssStyle,
     expander::Mode,
     html,
     lexer::Token,
@@ -24,9 +28,8 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
-        // TODO
         #[cfg(feature = "mathml")]
-        mathml_builder: None,
+        mathml_builder: Some(Box::new(mathml_builder)),
     });
 
     fns.insert_for_all_str(GENFRAC_NAMES.iter().copied(), genfrac);
@@ -36,7 +39,6 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_cfrac_handler),
         #[cfg(feature = "html")]
         html_builder: None,
-        // TODO
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });
@@ -48,7 +50,6 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(infix_handler),
         #[cfg(feature = "html")]
         html_builder: None,
-        // TODO
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });
@@ -69,9 +70,8 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac2_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
-        // TODO
         #[cfg(feature = "mathml")]
-        mathml_builder: None,
+        mathml_builder: Some(Box::new(mathml_builder)),
     });
 
     fns.insert(Cow::Borrowed("\\genfrac"), genfrac2);
@@ -84,7 +84,6 @@ pub fn add_functions(fns: &mut Functions) {
         // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
-        // TODO
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });
@@ -101,9 +100,8 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(genfrac_abovefrac_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
-        // TODO
         #[cfg(feature = "mathml")]
-        mathml_builder: None,
+        mathml_builder: Some(Box::new(mathml_builder)),
     });
 
     fns.insert(Cow::Borrowed("\\\\abovefrac"), genfrac_abovefrac);
@@ -590,11 +588,12 @@ fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode>
 }
 
 #[cfg(feature = "mathml")]
-fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
+fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithMathDomNode> {
     use crate::{
         mathml,
-        mathml_tree::{MathNode, MathNodeType},
+        mathml_tree::{self, MathNode, MathNodeType},
         tree::ClassList,
+        unit::make_em,
     };
 
     let ParseNode::GenFrac(group) = node else {
@@ -604,7 +603,56 @@ fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNod
 
     let numer = mathml::build_group(Some(&group.numer), options);
     let denom = mathml::build_group(Some(&group.denom), options);
-    let node = MathNode::new(MathNodeType::MFrac, vec![numer, denom], ClassList::new());
+    let mut node = MathNode::new(MathNodeType::MFrac, vec![numer, denom], ClassList::new());
 
-    todo!()
+    if !group.has_bar_line {
+        node.set_attribute("linethickness", "0px");
+    } else if let Some(bar_size) = &group.bar_size {
+        let rule_width = calculate_size(bar_size, options);
+        node.set_attribute("linethickness", make_em(rule_width).as_str());
+    }
+
+    let style = adjust_style(&group.size, options.style);
+    let node = if style.size() != options.style.size() {
+        let is_display = style.size() == DISPLAY_STYLE.size();
+
+        let node: Box<dyn WithMathDomNode> = Box::new(node);
+        MathNode::new(MathNodeType::MStyle, vec![node], ClassList::new())
+            .with_attribute("displaystyle", is_display.to_string())
+            .with_attribute("scriptlevel", "0")
+    } else {
+        node
+    };
+
+    if group.left_delim.is_some() || group.right_delim.is_some() {
+        let mut with_delims = Vec::new();
+
+        if let Some(left_delim) = &group.left_delim {
+            let left_text = left_delim.replace("\\", "");
+            let left_text = mathml_tree::TextNode::new(left_text);
+            let left_text: Box<dyn WithMathDomNode> = Box::new(left_text);
+
+            let left_op = MathNode::new(MathNodeType::Mo, vec![left_text], ClassList::new())
+                .with_attribute("fence", "true");
+
+            with_delims.push(left_op);
+        }
+
+        with_delims.push(node);
+
+        if let Some(right_delim) = &group.right_delim {
+            let right_text = right_delim.replace("\\", "");
+            let right_text = mathml_tree::TextNode::new(right_text);
+            let right_text: Box<dyn WithMathDomNode> = Box::new(right_text);
+
+            let right_op = MathNode::new(MathNodeType::Mo, vec![right_text], ClassList::new())
+                .with_attribute("fence", "true");
+
+            with_delims.push(right_op);
+        }
+
+        mathml::make_row(with_delims)
+    } else {
+        Box::new(node)
+    }
 }
