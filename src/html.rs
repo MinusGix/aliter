@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     build_common::{self, make_empty_span, make_span, make_span_s},
     dom_tree::{CssStyle, HtmlDomNode, HtmlNode, Span, WithHtmlDomNode},
@@ -5,8 +7,8 @@ use crate::{
     parse_node::ParseNode,
     spacing_data::{SPACINGS, TIGHT_SPACINGS},
     tree::ClassList,
-    unit::Measurement,
-    util::find_assoc_data,
+    unit::{make_em, Measurement},
+    util::{find_assoc_data, has_class},
     Options,
 };
 
@@ -69,7 +71,8 @@ impl DomType {
     }
 }
 
-pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) {
+/// Take an entire parse tree and build it into an appropriate set of HTML nodes.
+pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) -> Span<HtmlNode> {
     // Strip off any outer tag wrapper
     let (tag, tree) = if tree.len() == 1 && matches!(tree[0], ParseNode::Tag(_)) {
         let ParseNode::Tag(tag) = tree.into_iter().nth(0).unwrap() else {
@@ -81,9 +84,131 @@ pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) {
         (None, tree)
     };
 
-    let expression = build_expression(tree, &options, RealGroup::Root, (None, None));
+    let mut expression = build_expression(tree, &options, RealGroup::Root, (None, None));
 
-    todo!()
+    let eqn_num =
+        if expression.len() == 2 && expression[1].node().classes.iter().any(|c| c == "tag") {
+            // An environment with automatic equation numbers, e.g. {gather}.
+            expression.pop()
+        } else {
+            None
+        };
+
+    let mut children: Vec<HtmlNode> = Vec::new();
+
+    // Create one base node for each chunk between potential line breaks.
+    // The TeXBook [p.173] says "A formula will be broken only after a
+    // relation symbol like $=$ or $<$ or $\rightarrow$, or after a binary
+    // operation symbol like $+$ or $-$ or $\times$, where the relation or
+    // binary operation is on the ``outer level'' of the formula (i.e., not
+    // enclosed in {...} and not part of an \over construction)."
+
+    let mut parts = Vec::new();
+    let mut expression_iter = expression.into_iter().peekable();
+    while let Some(expr) = expression_iter.next() {
+        // TODO: don't clone
+        parts.push(expr.clone());
+
+        let classes = &expr.node().classes;
+        if has_class(classes, "mbin")
+            || has_class(classes, "mrel")
+            || has_class(classes, "allowbreak")
+        {
+            // Put any post-operator glue on the same line as the operator.
+            // Watch for \nobreak along the way, and stop at \newline.
+            let mut nobreak = false;
+            while let Some(next_expr) = expression_iter.peek() {
+                let next_classes = &next_expr.node().classes;
+                if !(has_class(next_classes, "mspace") && !has_class(next_classes, "newline")) {
+                    break;
+                }
+
+                let next_expr = expression_iter.next().unwrap();
+
+                if has_class(&next_expr.node().classes, "nobreak") {
+                    nobreak = true;
+                }
+
+                parts.push(next_expr);
+            }
+
+            // Don't allow break if \nobreak among the post-operator glue.
+            if !nobreak {
+                children.push(build_html_unbreakable(parts, &options).into());
+                parts = Vec::new();
+            }
+        } else if has_class(classes, "newline") {
+            // Write the line except the newline
+            parts.pop();
+            if !parts.is_empty() {
+                children.push(build_html_unbreakable(parts, &options).into());
+                parts = Vec::new();
+            }
+
+            // Put the newline at the top level
+            children.push(expr);
+        }
+    }
+
+    if !parts.is_empty() {
+        children.push(build_html_unbreakable(parts, &options).into());
+    }
+
+    // Now, if there was a tag, build it too and append it as a final child.
+    let has_tag_child = tag.is_some();
+    if let Some(tag) = tag {
+        let tag_child = build_expression(tag, &options, RealGroup::True, (None, None));
+        let mut tag_child = build_html_unbreakable(tag_child, &options);
+        tag_child.node.classes = vec!["tag".to_string()];
+
+        children.push(tag_child.into());
+    } else if let Some(eqn_num) = eqn_num {
+        children.push(eqn_num);
+    }
+
+    let mut html_node = make_span_s(vec!["katex-html".to_string()], children);
+    html_node
+        .attributes
+        .insert("aria-hidden".to_string(), "true".to_string());
+
+    // Adjust the strut of the tag to be the maximum height of all children
+    // (the height of the enclosing htmlNode) for proper vertical alignment.
+    if has_tag_child {
+        let height = html_node.node().height;
+        let depth = html_node.node().depth;
+        let strut = html_node.children.last_mut().unwrap();
+        strut.node_mut().style.height = Some(Cow::Owned(make_em(height + depth)));
+
+        if depth != 0.0 {
+            strut.node_mut().style.vertical_align = Some(Cow::Owned(make_em(-depth)));
+        }
+    }
+
+    html_node
+}
+
+/// Combine an array of HTML DOM nodes into an unbreakable HTML node of class `.base`, with proper
+/// struts to guarantee correct vertical extent. [`build_html`] calls this repeatedly to make up
+/// the entire expression as a sequence of unbreakable units.
+fn build_html_unbreakable(children: Vec<HtmlNode>, options: &Options) -> Span<HtmlNode> {
+    // Compute height and depth of this chunk.
+    let mut body = make_span(
+        vec!["base".to_string()],
+        children,
+        Some(options),
+        CssStyle::default(),
+    );
+
+    // Add strut, which ensures that the top of the HTML element falls at the height of the
+    // expression, and the bottom of the HTML element falls at the depth of the expression.
+    let mut strut = make_empty_span(vec!["strut".to_string()]);
+    strut.node.style.height = Some(Cow::Owned(make_em(body.node.height + body.node.depth)));
+    if body.node.depth != 0.0 {
+        strut.node.style.vertical_align = Some(Cow::Owned(make_em(-body.node.depth)));
+    }
+    body.children.insert(0, strut.into());
+
+    body
 }
 
 pub(crate) fn build_expression(

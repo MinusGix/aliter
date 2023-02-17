@@ -355,12 +355,15 @@ pub fn render_error(
 }
 
 #[cfg(feature = "html")]
-pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::DomSpan {
-    todo!()
-    // match parse_tree(expr, conf.clone()) {
-    //     Ok(tree) => build_html_tree(tree, expr, conf),
-    //     Err(err) => render_error(err, expr, conf).into_dom_span(),
-    // }
+/// Generates and returns the katex build tree, with just HTML (no MathML).  
+/// This is used for advanced use cases (like rendering to custom output).
+pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::Span<dom_tree::HtmlNode> {
+    use tree::build_html_tree;
+
+    match parse_tree(expr, conf.clone()) {
+        Ok(tree) => build_html_tree(tree, expr, conf),
+        Err(err) => render_error(err, expr, conf).using_html_node(),
+    }
 }
 
 // TODO: websys render function

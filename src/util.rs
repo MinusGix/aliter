@@ -6,6 +6,7 @@ use regex::Regex;
 use crate::{
     expander::Mode,
     style::{StyleId, DISPLAY_STYLE, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
+    tree::ClassList,
 };
 
 #[derive(Clone, PartialEq, Eq)]
@@ -97,6 +98,10 @@ pub(crate) fn parse_rgba(src: &str) -> Result<[u8; 4], ParseIntError> {
     let blue = (pcolor & 0xFF00) >> 8;
     let alpha = pcolor & 0xFF;
     Ok([red as u8, green as u8, blue as u8, alpha as u8])
+}
+
+pub(crate) fn has_class(classes: &ClassList, class: &str) -> bool {
+    classes.iter().any(|c| c == class)
 }
 
 /// LaTeX display style
