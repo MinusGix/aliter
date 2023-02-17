@@ -25,6 +25,7 @@ pub mod color;
 pub mod cr;
 pub mod def;
 pub mod genfrac;
+pub mod href;
 
 // TODO: Put specific function groups under features? Eh
 pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
@@ -41,6 +42,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     cr::add_functions(&mut fns);
     def::add_functions(&mut fns);
     genfrac::add_functions(&mut fns);
+    href::add_functions(&mut fns);
 
     fns
 });

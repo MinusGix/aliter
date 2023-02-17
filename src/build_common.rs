@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use crate::{
-    dom_tree::{CssStyle, HtmlDomNode, HtmlNode, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{Anchor, CssStyle, HtmlDomNode, HtmlNode, Span, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     symbols::{self, Font},
-    tree::{ClassList, EmptyNode},
+    tree::{ClassList, EmptyNode, VirtualNode},
     unit::{self, calculate_size, make_em, Measurement},
     Options,
 };
@@ -263,6 +263,19 @@ pub(crate) fn make_line_span(
     line.node.style.border_bottom_width = Some(Cow::Owned(unit::make_em(line.node.height)));
     line.node.max_font_size = 1.0;
     line
+}
+
+pub(crate) fn make_anchor<T: WithHtmlDomNode>(
+    href: String,
+    classes: ClassList,
+    children: Vec<T>,
+    options: &Options,
+) -> Anchor<T> {
+    let mut anchor = Anchor::new(href, classes, children, options);
+
+    size_element_for_children(&mut anchor.node, &anchor.children);
+
+    anchor
 }
 
 #[derive(Debug, Clone)]

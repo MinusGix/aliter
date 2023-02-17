@@ -131,6 +131,12 @@ pub struct ParserConfig {
     /// This allows things like `\url`, `\includegraphics`, `\htmlClass`, etc.
     pub trust: bool,
 }
+impl ParserConfig {
+    pub fn is_trusted(&self, _command: &str, _url: &str) -> bool {
+        // TODO: allow a custom function to be used
+        self.trust
+    }
+}
 impl Default for ParserConfig {
     fn default() -> Self {
         ParserConfig {
@@ -449,7 +455,7 @@ impl<'a, 'f> Parser<'a, 'f> {
 
     /// Converts the textual input of an unsupported command into a text node
     /// contained within a color node whose color is determined by errorColor
-    fn format_unsupported_cmd(&self, text: &str) -> UnsupportedCmdParseNode {
+    pub(crate) fn format_unsupported_cmd(&self, text: &str) -> UnsupportedCmdParseNode {
         // TODO: We can surely do way better than converting each char to a string
 
         let text_ord_array = text

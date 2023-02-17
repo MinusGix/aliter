@@ -8,10 +8,8 @@ pub fn add_functions(fns: &mut Functions) {
     let chr = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::TextOrd, 1).with_allowed_in_text(true),
         handler: Box::new(chr_handler),
-        // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
-        // TODO
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });

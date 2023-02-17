@@ -47,6 +47,105 @@ where
     }
 }
 
+// TODO: get_variant
+
+pub(crate) fn build_expression(
+    expression: Vec<ParseNode>,
+    options: &Options,
+    is_ord_group: Option<bool>,
+) -> Vec<MathmlNode> {
+    if expression.len() == 1 {
+        let first = expression.into_iter().nth(0).unwrap();
+        let mut group = build_group(Some(&first), options);
+        if is_ord_group == Some(true) {
+            if let MathmlNode::Math(group) = &mut group {
+                if group.typ == MathNodeType::Mo {
+                    // When TeX writers want to suppress spacing on an operator, they often
+                    // put the operator by itself inside braces.
+                    group.set_attribute("lspace", "0em");
+                    group.set_attribute("rspace", "0em");
+                }
+            }
+        }
+
+        return vec![group];
+    }
+
+    let mut groups = Vec::new();
+    let mut last_group_idx = None;
+    for expr in expression {
+        let mut group = build_group(Some(&expr), options);
+        if let MathmlNode::Math(group) = &mut group {
+            let last_group = last_group_idx.and_then(|idx| groups.get_mut(idx));
+            if let Some(MathmlNode::Math(last_group)) = last_group {
+                if group.typ == MathNodeType::MText
+                    && last_group.typ == MathNodeType::MText
+                    && group.get_attribute("mathvariant") == last_group.get_attribute("mathvariant")
+                {
+                    // Concatenate adjacent `<mtext`s
+                    last_group.children.append(&mut group.children);
+                    continue;
+                } else if group.typ == MathNodeType::Mn && last_group.typ == MathNodeType::Mn {
+                    // Concatenate adjacent `<mn>`s
+                    last_group.children.append(&mut group.children);
+                    continue;
+                } else if group.typ == MathNodeType::Mi
+                    && group.children.len() == 1
+                    && last_group.typ == MathNodeType::Mn
+                {
+                    // Concatenate `<mn>...</mn>` followed by `<mi>.</mi>`
+                    let child = group.children.get(0);
+                    if let Some(MathmlNode::Text(child)) = child {
+                        if child.text == "." {
+                            last_group.children.append(&mut group.children);
+                            continue;
+                        }
+                    }
+                } else if last_group.typ == MathNodeType::Mi && last_group.children.len() == 1 {
+                    let last_child = last_group.children.get(0);
+                    if let Some(MathmlNode::Text(last_child)) = last_child {
+                        if last_child.text == "\u{0338}"
+                            && matches!(
+                                group.typ,
+                                MathNodeType::Mo | MathNodeType::Mi | MathNodeType::Mn
+                            )
+                        {
+                            let child = group.children.get_mut(0);
+                            if let Some(MathmlNode::Text(child)) = child {
+                                if !child.text.is_empty() {
+                                    // Overlay with combining character long solidus
+                                    let first_char = child.text.chars().nth(0).unwrap();
+                                    child.text = format!(
+                                        "{}\u{0338}{}",
+                                        first_char,
+                                        &child.text[first_char.len_utf8()..]
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        groups.push(group);
+        last_group_idx = Some(groups.len() - 1)
+    }
+
+    groups
+}
+
+/// Equivalent to [`build_expression`], but wraps the elements in an `<mrow>` if there's more than
+/// one.
+pub(crate) fn build_expression_row(
+    expression: Vec<ParseNode>,
+    options: &Options,
+    is_ord_group: Option<bool>,
+) -> MathmlNode {
+    let res = build_expression(expression, options, is_ord_group);
+    make_row(res)
+}
+
 pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> MathmlNode {
     let Some(group) = group else {
         return MathNode::<EmptyMathNode>::new_empty(MathNodeType::MRow).into();

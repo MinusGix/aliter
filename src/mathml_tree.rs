@@ -12,6 +12,7 @@ pub enum MathNodeType {
     Semantics,
     MText,
     Mn,
+    Mi,
     Mo,
     MSpace,
     MOver,
@@ -42,6 +43,7 @@ impl MathNodeType {
             MathNodeType::Semantics => "semantics",
             MathNodeType::MText => "mtext",
             MathNodeType::Mn => "mn",
+            MathNodeType::Mi => "mi",
             MathNodeType::Mo => "mo",
             MathNodeType::MSpace => "mspace",
             MathNodeType::MOver => "mover",
@@ -194,7 +196,7 @@ impl From<SpaceNode> for MathmlNode {
 pub struct MathNode<T: WithMathDomNode> {
     pub node: MathDomNode,
     pub typ: MathNodeType,
-    children: Vec<T>,
+    pub children: Vec<T>,
     pub classes: ClassList,
     attributes: Attributes,
 }
