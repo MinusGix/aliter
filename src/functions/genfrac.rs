@@ -1,9 +1,9 @@
 use std::{borrow::Cow, sync::Arc};
 
 #[cfg(feature = "html")]
-use crate::dom_tree::WithHtmlDomNode;
+use crate::dom_tree::HtmlNode;
 #[cfg(feature = "mathml")]
-use crate::mathml_tree::WithMathDomNode;
+use crate::mathml_tree::MathmlNode;
 use crate::{
     build_common::{make_line_span, make_span, make_v_list, VListElemShift, VListParam},
     delimiter,
@@ -390,8 +390,8 @@ fn adjust_style(size: &StyleAuto, original_style: StyleId) -> StyleId {
 
 // TODO: should we just have this accept a `&GenFracNode`? Though we'd need a wrapper function to convert..
 #[cfg(feature = "html")]
-fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
-    use crate::tree::ClassList;
+fn html_builder(node: &ParseNode, options: &Options) -> HtmlNode {
+    use crate::{dom_tree::WithHtmlDomNode, tree::ClassList};
 
     let ParseNode::GenFrac(group) = node else {
         // TODO: Don't panic
@@ -481,12 +481,11 @@ fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode>
 
         let mid_shift = -(axis_height - 0.5 * rule_width);
 
-        let rule = Box::new(rule);
         make_v_list(
             VListParam::IndividualShift {
                 children: vec![
                     VListElemShift::new(denomm, denom_shift),
-                    VListElemShift::new(rule, mid_shift),
+                    VListElemShift::new(rule.into(), mid_shift),
                     VListElemShift::new(numerm, -num_shift),
                 ],
             },
@@ -572,23 +571,19 @@ fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode>
         left_delim,
         make_span(
             vec!["mfrac".to_string()],
-            vec![Box::new(frac)],
+            vec![frac],
             None,
             CssStyle::default(),
-        ),
+        )
+        .using_html_node(),
         right_delim,
     ];
 
-    Box::new(make_span(
-        classes,
-        children,
-        Some(options),
-        CssStyle::default(),
-    ))
+    make_span(classes, children, Some(options), CssStyle::default()).into()
 }
 
 #[cfg(feature = "mathml")]
-fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithMathDomNode> {
+fn mathml_builder(node: &ParseNode, options: &Options) -> MathmlNode {
     use crate::{
         mathml,
         mathml_tree::{self, MathNode, MathNodeType},
@@ -616,43 +611,41 @@ fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithMathDomNod
     let node = if style.size() != options.style.size() {
         let is_display = style.size() == DISPLAY_STYLE.size();
 
-        let node: Box<dyn WithMathDomNode> = Box::new(node);
         MathNode::new(MathNodeType::MStyle, vec![node], ClassList::new())
             .with_attribute("displaystyle", is_display.to_string())
             .with_attribute("scriptlevel", "0")
+            .using_mathml_node()
     } else {
         node
     };
 
     if group.left_delim.is_some() || group.right_delim.is_some() {
-        let mut with_delims = Vec::new();
+        let mut with_delims: Vec<MathmlNode> = Vec::new();
 
         if let Some(left_delim) = &group.left_delim {
             let left_text = left_delim.replace("\\", "");
             let left_text = mathml_tree::TextNode::new(left_text);
-            let left_text: Box<dyn WithMathDomNode> = Box::new(left_text);
 
             let left_op = MathNode::new(MathNodeType::Mo, vec![left_text], ClassList::new())
                 .with_attribute("fence", "true");
 
-            with_delims.push(left_op);
+            with_delims.push(left_op.into());
         }
 
-        with_delims.push(node);
+        with_delims.push(node.into());
 
         if let Some(right_delim) = &group.right_delim {
             let right_text = right_delim.replace("\\", "");
             let right_text = mathml_tree::TextNode::new(right_text);
-            let right_text: Box<dyn WithMathDomNode> = Box::new(right_text);
 
             let right_op = MathNode::new(MathNodeType::Mo, vec![right_text], ClassList::new())
                 .with_attribute("fence", "true");
 
-            with_delims.push(right_op);
+            with_delims.push(right_op.into());
         }
 
         mathml::make_row(with_delims)
     } else {
-        Box::new(node)
+        node.into()
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
-    build_common::{make_span, make_span_s},
-    dom_tree::{CssStyle, DomSpan, WithHtmlDomNode},
+    build_common::{make_empty_span, make_span, make_span_s},
+    dom_tree::{CssStyle, DomSpan, HtmlNode, Span},
     functions,
     parse_node::ParseNode,
     tree::ClassList,
@@ -61,14 +61,9 @@ pub(crate) fn build_group(
     group: Option<&ParseNode>,
     options: &Options,
     base_options: Option<&Options>,
-) -> Box<dyn WithHtmlDomNode> {
+) -> HtmlNode {
     let Some(group) = group else {
-        return Box::new(make_span::<Box<dyn WithHtmlDomNode>>(
-            ClassList::new(),
-            Vec::new(),
-            None,
-            CssStyle::default(),
-        ));
+        return make_empty_span(ClassList::new()).into();
     };
 
     if let Some(html_builder) = functions::FUNCTIONS.find_html_builder_for_type(group.typ()) {
@@ -90,7 +85,7 @@ pub(crate) fn build_group(
                 group_node.node.height *= mult;
                 group_node.node.depth *= mult;
 
-                return Box::new(group_node);
+                return group_node.into();
             }
         }
 
@@ -100,7 +95,7 @@ pub(crate) fn build_group(
     }
 }
 
-pub(crate) fn make_null_delimiter(options: &Options, classes: ClassList) -> DomSpan {
+pub(crate) fn make_null_delimiter(options: &Options, classes: ClassList) -> Span<HtmlNode> {
     let classes = options
         .base_sizing_classes()
         .into_iter()

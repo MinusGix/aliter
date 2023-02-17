@@ -128,6 +128,67 @@ impl WithMathDomNode for EmptyMathNode {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum MathmlNode {
+    Empty(EmptyMathNode),
+    Math(MathNode<MathmlNode>),
+    Text(TextNode),
+    Space(SpaceNode),
+}
+impl VirtualNode for MathmlNode {
+    fn to_markup(&self) -> String {
+        match self {
+            MathmlNode::Empty(node) => node.to_markup(),
+            MathmlNode::Math(node) => node.to_markup(),
+            MathmlNode::Text(node) => node.to_markup(),
+            MathmlNode::Space(node) => node.to_markup(),
+        }
+    }
+}
+impl WithMathDomNode for MathmlNode {
+    fn node(&self) -> &MathDomNode {
+        match self {
+            MathmlNode::Empty(node) => node.node(),
+            MathmlNode::Math(node) => node.node(),
+            MathmlNode::Text(node) => node.node(),
+            MathmlNode::Space(node) => node.node(),
+        }
+    }
+
+    fn node_mut(&mut self) -> &mut MathDomNode {
+        match self {
+            MathmlNode::Empty(node) => node.node_mut(),
+            MathmlNode::Math(node) => node.node_mut(),
+            MathmlNode::Text(node) => node.node_mut(),
+            MathmlNode::Space(node) => node.node_mut(),
+        }
+    }
+}
+impl From<EmptyMathNode> for MathmlNode {
+    fn from(node: EmptyMathNode) -> MathmlNode {
+        MathmlNode::Empty(node)
+    }
+}
+impl<T: WithMathDomNode> From<MathNode<T>> for MathmlNode
+where
+    MathmlNode: From<T>,
+{
+    fn from(node: MathNode<T>) -> MathmlNode {
+        let node = node.using_mathml_node();
+        MathmlNode::Math(node)
+    }
+}
+impl From<TextNode> for MathmlNode {
+    fn from(node: TextNode) -> MathmlNode {
+        MathmlNode::Text(node)
+    }
+}
+impl From<SpaceNode> for MathmlNode {
+    fn from(node: SpaceNode) -> MathmlNode {
+        MathmlNode::Space(node)
+    }
+}
+
 /// General purpose MathML node of any type.
 #[derive(Debug, Clone)]
 pub struct MathNode<T: WithMathDomNode> {
@@ -167,6 +228,20 @@ impl<T: WithMathDomNode> MathNode<T> {
 
     // TODO: into_node
     // TODO: to_text
+}
+impl<T: WithMathDomNode> MathNode<T>
+where
+    MathmlNode: From<T>,
+{
+    pub fn using_mathml_node(self) -> MathNode<MathmlNode> {
+        MathNode {
+            node: self.node,
+            typ: self.typ,
+            children: self.children.into_iter().map(MathmlNode::from).collect(),
+            classes: self.classes,
+            attributes: self.attributes,
+        }
+    }
 }
 impl<T: WithMathDomNode> VirtualNode for MathNode<T> {
     fn to_markup(&self) -> String {
@@ -213,6 +288,7 @@ impl<T: WithMathDomNode> WithMathDomNode for MathNode<T> {
 }
 
 /// Represents a piece of text
+#[derive(Debug, Clone)]
 pub struct TextNode {
     pub node: MathDomNode,
     pub text: String,
@@ -246,6 +322,7 @@ impl WithMathDomNode for TextNode {
 }
 
 /// Represents a space, but may render as `<mspace.../>` or as text, depending on the width
+#[derive(Debug, Clone)]
 pub struct SpaceNode {
     pub node: MathDomNode,
     pub width: Em,

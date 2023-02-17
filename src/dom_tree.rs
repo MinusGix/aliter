@@ -2,12 +2,12 @@ use std::borrow::Cow;
 
 use crate::{
     parse_node::Color,
-    tree::{class_attr, Attributes, ClassList, VirtualNode},
+    tree::{class_attr, Attributes, ClassList, EmptyNode, VirtualNode},
     util, Options,
 };
 
 // TODO: We could have so fields that are numbers have to be actual numbers?
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CssStyle {
     pub background_color: Option<Cow<'static, str>>,
     pub border_bottom_width: Option<Cow<'static, str>>,
@@ -128,7 +128,7 @@ fn to_markup_attr<T: VirtualNode>(
 // field-interfaces, and while we could use a trait that is not a nice
 // implementation. So, instead we have a structure that another structure
 // can just include.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HtmlDomNode {
     pub classes: ClassList,
     pub height: f64,
@@ -182,6 +182,78 @@ impl VirtualNode for HtmlDomNode {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum HtmlNode {
+    Empty(EmptyNode),
+    DocumentFragment(DocumentFragment<HtmlNode>),
+    Span(Span<HtmlNode>),
+    Anchor(Anchor<HtmlNode>),
+    Img(Img),
+    Symbol(SymbolNode),
+}
+impl VirtualNode for HtmlNode {
+    fn to_markup(&self) -> String {
+        match self {
+            HtmlNode::Empty(node) => node.to_markup(),
+            HtmlNode::DocumentFragment(node) => node.to_markup(),
+            HtmlNode::Span(node) => node.to_markup(),
+            HtmlNode::Anchor(node) => node.to_markup(),
+            HtmlNode::Img(node) => node.to_markup(),
+            HtmlNode::Symbol(node) => node.to_markup(),
+        }
+    }
+}
+impl WithHtmlDomNode for HtmlNode {
+    fn node(&self) -> &HtmlDomNode {
+        match self {
+            HtmlNode::Empty(node) => node.node(),
+            HtmlNode::DocumentFragment(node) => node.node(),
+            HtmlNode::Span(node) => node.node(),
+            HtmlNode::Anchor(node) => node.node(),
+            HtmlNode::Img(node) => node.node(),
+            HtmlNode::Symbol(node) => node.node(),
+        }
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        todo!()
+    }
+}
+impl From<EmptyNode> for HtmlNode {
+    fn from(node: EmptyNode) -> Self {
+        HtmlNode::Empty(node)
+    }
+}
+impl From<DocumentFragment<HtmlNode>> for HtmlNode {
+    fn from(node: DocumentFragment<HtmlNode>) -> Self {
+        HtmlNode::DocumentFragment(node)
+    }
+}
+impl<T: VirtualNode> From<Span<T>> for HtmlNode
+where
+    HtmlNode: From<T>,
+{
+    fn from(node: Span<T>) -> Self {
+        let node = node.using_html_node();
+        HtmlNode::Span(node)
+    }
+}
+impl From<Anchor<HtmlNode>> for HtmlNode {
+    fn from(node: Anchor<HtmlNode>) -> Self {
+        HtmlNode::Anchor(node)
+    }
+}
+impl From<Img> for HtmlNode {
+    fn from(node: Img) -> Self {
+        HtmlNode::Img(node)
+    }
+}
+impl From<SymbolNode> for HtmlNode {
+    fn from(node: SymbolNode) -> Self {
+        HtmlNode::Symbol(node)
+    }
+}
+
 /// A trait for nodes which contain an [`HtmlDomNode`]  
 /// This is needed since some parts of KaTeX use [`HtmlDomNode`] like an abstract
 /// base, but we're treating it like a normal structure
@@ -210,6 +282,7 @@ impl WithHtmlDomNode for HtmlDomNode {
 }
 
 // TODO: implements htmldomnode, mathdomnode..
+#[derive(Debug, Clone)]
 pub struct DocumentFragment<T: VirtualNode> {
     pub node: HtmlDomNode,
     pub children: Vec<T>,
@@ -226,11 +299,21 @@ impl<T: VirtualNode> DocumentFragment<T> {
         self.node.has_class(class)
     }
 
-    pub fn to_markup(&self) -> String {
+    // TODO: math node to text?
+}
+impl<T: VirtualNode> VirtualNode for DocumentFragment<T> {
+    fn to_markup(&self) -> String {
         self.children.iter().map(|c| c.to_markup()).collect()
     }
+}
+impl<T: VirtualNode> WithHtmlDomNode for DocumentFragment<T> {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
 
-    // TODO: math node to text?
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
 }
 
 pub type DomSpan = Span<Box<dyn WithHtmlDomNode>>;
@@ -258,6 +341,19 @@ impl<T: VirtualNode> Span<T> {
             children,
             attributes: Attributes::new(),
             width: None,
+        }
+    }
+}
+impl<T: VirtualNode> Span<T>
+where
+    HtmlNode: From<T>,
+{
+    pub fn using_html_node(self) -> Span<HtmlNode> {
+        Span {
+            node: self.node,
+            children: self.children.into_iter().map(HtmlNode::from).collect(),
+            attributes: self.attributes,
+            width: self.width,
         }
     }
 }
@@ -300,18 +396,14 @@ impl<T: VirtualNode> VirtualNode for Span<T> {
     }
 }
 
-pub struct Anchor {
+#[derive(Debug, Clone)]
+pub struct Anchor<T: VirtualNode> {
     pub node: HtmlDomNode,
-    pub children: Vec<Box<dyn WithHtmlDomNode>>,
+    pub children: Vec<T>,
     pub attributes: Attributes,
 }
-impl Anchor {
-    pub fn new(
-        href: String,
-        classes: ClassList,
-        children: Vec<Box<dyn WithHtmlDomNode>>,
-        options: &Options,
-    ) -> Anchor {
+impl<T: VirtualNode> Anchor<T> {
+    pub fn new(href: String, classes: ClassList, children: Vec<T>, options: &Options) -> Anchor<T> {
         let node = HtmlDomNode::new(classes, Some(options), CssStyle::default());
         let mut attributes = Attributes::new();
         attributes.insert("href".to_string(), href);
@@ -323,7 +415,7 @@ impl Anchor {
         }
     }
 }
-impl WithHtmlDomNode for Anchor {
+impl<T: VirtualNode> WithHtmlDomNode for Anchor<T> {
     fn node(&self) -> &HtmlDomNode {
         &self.node
     }
@@ -332,12 +424,13 @@ impl WithHtmlDomNode for Anchor {
         &mut self.node
     }
 }
-impl VirtualNode for Anchor {
+impl<T: VirtualNode> VirtualNode for Anchor<T> {
     fn to_markup(&self) -> String {
         to_markup_attr(&self.node, &self.attributes, &self.children, "a")
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Img {
     pub node: HtmlDomNode,
     pub src: String,
@@ -378,6 +471,7 @@ impl VirtualNode for Img {
 /// A symbol node contains information about a single symbol.  
 /// It either renders to a single text node, or a span with a single text node in it,
 /// depending on whether has CSS classes, styles, or needs italic correction.
+#[derive(Debug, Clone)]
 pub struct SymbolNode {
     pub node: HtmlDomNode,
     pub text: String,
@@ -507,6 +601,7 @@ impl VirtualNode for SymbolNode {
 //     pub attributes: HashMap<String, String>,
 // }
 
+#[derive(Debug, Clone)]
 pub struct PathNode {
     pub path_name: String,
     pub alternate: Option<String>,
@@ -525,6 +620,7 @@ impl VirtualNode for PathNode {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LineNode {
     pub attributes: Attributes,
 }

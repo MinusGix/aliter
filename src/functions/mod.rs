@@ -3,16 +3,19 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
 
 use crate::{
-    dom_tree::WithHtmlDomNode,
     environments::cd,
     expander::BreakToken,
     lexer::Token,
-    mathml_tree::WithMathDomNode,
     parse_node::{ParseNode, ParseNodeType},
     parser::Parser,
     util::ArgType,
     Options,
 };
+
+#[cfg(feature = "html")]
+use crate::dom_tree::HtmlNode;
+#[cfg(feature = "mathml")]
+use crate::mathml_tree::MathmlNode;
 
 pub mod accent;
 pub mod accent_under;
@@ -174,9 +177,9 @@ impl FunctionPropSpec {
 }
 
 #[cfg(feature = "html")]
-pub type HtmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> Box<dyn WithHtmlDomNode>>;
+pub type HtmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> HtmlNode>;
 #[cfg(feature = "mathml")]
-pub type MathmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> Box<dyn WithMathDomNode>>;
+pub type MathmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> MathmlNode>;
 
 pub struct FunctionSpec {
     pub prop: FunctionPropSpec,

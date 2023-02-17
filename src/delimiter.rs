@@ -1,6 +1,6 @@
 use crate::{
     build_common::{self, make_span, VListElem, VListKern, VListParam, VListShiftChild},
-    dom_tree::{CssStyle, DomSpan, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{CssStyle, HtmlNode, Span, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     font_metrics_data,
@@ -221,7 +221,7 @@ pub(crate) fn custom_sized_delim(
     options: &Options,
     mode: Mode,
     classes: ClassList,
-) -> DomSpan {
+) -> Span<HtmlNode> {
     let delim = delim_swap(delim);
 
     // Decide what sequence to use
@@ -238,14 +238,12 @@ pub(crate) fn custom_sized_delim(
     // Get the delimter from font glyphs
     match delim_type {
         Delimiter::Small(style) => {
-            small_delim(delim, style, center, options, mode, classes).into_dom_span()
+            small_delim(delim, style, center, options, mode, classes).using_html_node()
         }
         Delimiter::Large(size) => {
-            large_delim(delim, size, center, options, mode, classes).into_dom_span()
+            large_delim(delim, size, center, options, mode, classes).using_html_node()
         }
-        Delimiter::Stack => {
-            stacked_delim(delim, height, center, options, mode, classes).into_dom_span()
-        }
+        Delimiter::Stack => stacked_delim(delim, height, center, options, mode, classes),
     }
 }
 
@@ -374,7 +372,7 @@ fn glyph_span(symbol: &str, font: GlyphFont, mode: Mode) -> VListElem<Span<Span<
     VListElem::new(corner)
 }
 
-fn make_inner(ch: char, height: f64, options: &Options) -> VListElem<DomSpan> {
+fn make_inner(ch: char, height: f64, options: &Options) -> VListElem<Span<HtmlNode>> {
     // Create a span with inline SVG for the inner part of a tall stacked delimiter
     let size4_metrics = font_metrics_data::get_metric("Size4-Regular").unwrap();
     let size1_metrics = font_metrics_data::get_metric("Size1-Regular").unwrap();
@@ -399,7 +397,7 @@ fn make_inner(ch: char, height: f64, options: &Options) -> VListElem<DomSpan> {
 }
 
 const LAP_IN_EMS: f64 = 0.008;
-const LAP: VListShiftChild<DomSpan> = VListShiftChild::Kern(VListKern(-1.0 * LAP_IN_EMS));
+const LAP: VListShiftChild<Span<HtmlNode>> = VListShiftChild::Kern(VListKern(-1.0 * LAP_IN_EMS));
 const VERTS: [&'static str; 4] = ["|", "\\lvert", "\\rvert", "\\vert"];
 const DOUBLE_VERTS: [&'static str; 4] = ["\\|", "\\lVert", "\\rVert", "\\Vert"];
 
@@ -410,7 +408,7 @@ fn stacked_delim(
     options: &Options,
     mode: Mode,
     classes: ClassList,
-) -> DomSpan {
+) -> Span<HtmlNode> {
     let mut top: &str = delim;
     let mut middle: Option<&str> = None;
     let mut repeat: &str = delim;
@@ -589,10 +587,10 @@ fn stacked_delim(
     let depth = real_height_total / 2.0 - axis_height;
 
     // Now, we start building the pieces that go into the vlist.
-    let mut stack: Vec<VListShiftChild<DomSpan>> = Vec::new();
+    let mut stack: Vec<VListShiftChild<Span<HtmlNode>>> = Vec::new();
 
     // Add the bottom symbol
-    let glyph: VListElem<DomSpan> = glyph_span(bottom, font, mode).map(Span::into_dom_span);
+    let glyph = glyph_span(bottom, font, mode).map(Span::using_html_node);
     stack.push(VListShiftChild::Elem(glyph));
     stack.push(LAP);
 
@@ -610,7 +608,7 @@ fn stacked_delim(
         // Now insert the middle of the brace
         stack.push(LAP);
 
-        let glyph = glyph_span(middle, font, mode).map(Span::into_dom_span);
+        let glyph = glyph_span(middle, font, mode).map(Span::using_html_node);
         let glyph = VListShiftChild::Elem(glyph);
         stack.push(glyph);
 
@@ -632,7 +630,7 @@ fn stacked_delim(
     // Add the top symbol
     stack.push(LAP);
 
-    let glyph = glyph_span(top, font, mode).map(Span::into_dom_span);
+    let glyph = glyph_span(top, font, mode).map(Span::using_html_node);
     let glyph = VListShiftChild::Elem(glyph);
     stack.push(glyph);
 
@@ -657,7 +655,7 @@ fn stacked_delim(
 
     let span = style_wrap(span, TEXT_STYLE, options, classes);
 
-    span.into_dom_span()
+    span.using_html_node()
 }
 
 // All surds have 0.08em of padding above the viniculum inside the SVG.
@@ -690,7 +688,7 @@ pub(crate) fn left_right_delim(
     options: &Options,
     mode: Mode,
     classes: ClassList,
-) -> DomSpan {
+) -> Span<HtmlNode> {
     // We always center \left/\right delimeters, so the axis is always shifted
     let axis_height = options.font_metrics().axis_height * options.size_multiplier();
 

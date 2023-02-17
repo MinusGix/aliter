@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    dom_tree::{CssStyle, DomSpan, HtmlDomNode, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{CssStyle, HtmlDomNode, HtmlNode, Span, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     symbols::{self, Font},
@@ -175,8 +175,8 @@ pub(crate) fn make_line_span(
     class_name: &str,
     options: &Options,
     thickness: Option<f64>,
-) -> DomSpan {
-    let mut line = make_span(
+) -> Span<HtmlNode> {
+    let mut line = make_span::<HtmlNode>(
         vec![class_name.to_string()],
         Vec::new(),
         Some(options),
@@ -191,7 +191,7 @@ pub(crate) fn make_line_span(
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct VListElem<T: WithHtmlDomNode> {
+pub(crate) struct VListElem<T> {
     pub(crate) elem: T,
     pub(crate) margin_left: Option<Cow<'static, str>>,
     pub(crate) margin_right: Option<Cow<'static, str>>,
@@ -220,7 +220,7 @@ impl<T: WithHtmlDomNode> VListElem<T> {
     }
 }
 #[derive(Debug, Clone)]
-pub(crate) struct VListElemShift<T: WithHtmlDomNode> {
+pub(crate) struct VListElemShift<T> {
     pub(crate) elem: VListElem<T>,
     pub(crate) shift: f64,
 }
@@ -237,7 +237,7 @@ impl<T: WithHtmlDomNode> VListElemShift<T> {
 pub(crate) struct VListKern(pub(crate) f64);
 
 #[derive(Debug, Clone)]
-pub(crate) enum VListShiftChild<T: WithHtmlDomNode> {
+pub(crate) enum VListShiftChild<T> {
     Elem(VListElem<T>),
     Shift(VListElemShift<T>),
     Kern(VListKern),
@@ -260,7 +260,7 @@ impl<T: WithHtmlDomNode> VListShiftChild<T> {
     }
 }
 
-pub(crate) enum VListParam<T: WithHtmlDomNode> {
+pub(crate) enum VListParam<T> {
     /// Where each child contains how much it should be shifted downward
     IndividualShift { children: Vec<VListElemShift<T>> },
     /// `amount` specifies the topmost point of the vlist
@@ -365,10 +365,10 @@ impl<T: WithHtmlDomNode> VListParam<T> {
 // TODO: This function could get rid of more of its boxes
 /// Makes a vertical list by stacking elements and kerns on top of each other.  
 /// Allows for many different ways of specifying the positioning method.
-pub(crate) fn make_v_list<T: WithHtmlDomNode + 'static>(
+pub(crate) fn make_v_list<T: WithHtmlDomNode + Into<HtmlNode> + 'static>(
     params: VListParam<T>,
     _options: &Options,
-) -> DomSpan {
+) -> Span<HtmlNode> {
     let (children, depth) = params.into_children_and_depth();
 
     // Create a strut that is taller than any list item. The strut is added to
@@ -393,7 +393,7 @@ pub(crate) fn make_v_list<T: WithHtmlDomNode + 'static>(
     pstrut.node.style.height = Some(Cow::Owned(make_em(pstrut_size)));
 
     // Create a new list of actual children at the correct offsets
-    let mut real_children = Vec::new();
+    let mut real_children: Vec<Span<HtmlNode>> = Vec::new();
     let mut min_pos = depth;
     let mut max_pos = depth;
     let mut curr_pos = depth;
@@ -412,10 +412,9 @@ pub(crate) fn make_v_list<T: WithHtmlDomNode + 'static>(
             let i_height = inner_elem.node().height;
             let i_depth = inner_elem.node().depth;
 
-            let pstrut = Box::new(pstrut.clone());
-            let inner_elem = Box::new(inner_elem);
-            let mut child_wrap: Span<Box<dyn WithHtmlDomNode>> =
-                make_span(classes, vec![pstrut, inner_elem], None, style);
+            let pstrut = pstrut.clone().using_html_node();
+            let mut child_wrap: Span<HtmlNode> =
+                make_span(classes, vec![pstrut.into(), inner_elem.into()], None, style);
             child_wrap.node.style.top =
                 Some(Cow::Owned(make_em(-pstrut_size - curr_pos - i_depth)));
 
@@ -438,40 +437,34 @@ pub(crate) fn make_v_list<T: WithHtmlDomNode + 'static>(
     // The vlist contents go in a table-cell with `vertical-align:bottom`.
     // This cell's bottom edge will determine the containing table's baseline
     // without overly expanding the containing line-box.
-    let mut v_list = make_span_s(vec!["vlist".to_string()], real_children);
+    let mut v_list = make_span_s(vec!["vlist".to_string()], real_children).using_html_node();
     v_list.node.style.height = Some(Cow::Owned(make_em(max_pos)));
 
-    let rows: Vec<Box<dyn WithHtmlDomNode>> = if min_pos < 0.0 {
+    let rows: Vec<Span<Span<HtmlNode>>> = if min_pos < 0.0 {
         // We will define depth in an empty span with display: table-cell.
         // It should render with the height that we define. But Chrome, in
         // contenteditable mode only, treats that span as if it contains some
         // text content. And that min-height over-rides our desired height.
         // So we put another empty span inside the depth strut span.
-        let empty_span: DomSpan =
-            make_span_s::<Box<dyn WithHtmlDomNode>>(ClassList::new(), Vec::new());
-        let mut depth_strut = make_span_s(vec!["vlist".to_string()], vec![empty_span]);
+        let empty_span = make_empty_span(ClassList::new());
+        let mut depth_strut =
+            make_span_s(vec!["vlist".to_string()], vec![empty_span]).using_html_node();
         depth_strut.node.style.height = Some(Cow::Owned(make_em(-min_pos)));
 
         // Safari wants the first row to have inline content; otherwise it puts the bottom of the *second* row on the baseline
         let symbol = SymbolNode::new_text("\u{200b}".to_string());
-        let top_strut = make_span_s(vec!["vlist-s".to_string()], vec![symbol]);
+        let top_strut = make_span_s(vec!["vlist-s".to_string()], vec![symbol]).using_html_node();
 
         vec![
-            Box::new(make_span_s::<Box<dyn WithHtmlDomNode>>(
-                vec!["vlist-r".to_string()],
-                vec![Box::new(v_list), Box::new(top_strut)],
-            )),
-            Box::new(make_span_s(vec!["vlist-r".to_string()], vec![depth_strut])),
+            make_span_s(vec!["vlist-r".to_string()], vec![v_list, top_strut]),
+            make_span_s(vec!["vlist-r".to_string()], vec![depth_strut]),
         ]
     } else {
-        vec![Box::new(make_span_s(
-            vec!["vlist-r".to_string()],
-            vec![v_list],
-        ))]
+        vec![make_span_s(vec!["vlist-r".to_string()], vec![v_list])]
     };
 
     let rows_len = rows.len();
-    let mut vtable: DomSpan = make_span_s(vec!["vlist-t".to_string()], rows);
+    let mut vtable = make_span_s(vec!["vlist-t".to_string()], rows);
     if rows_len == 2 {
         vtable.node.classes.push("vlist-t2".to_string());
     }
@@ -479,5 +472,5 @@ pub(crate) fn make_v_list<T: WithHtmlDomNode + 'static>(
     vtable.node.height = max_pos;
     vtable.node.depth = -min_pos;
 
-    vtable
+    vtable.using_html_node()
 }

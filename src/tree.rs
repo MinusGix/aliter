@@ -1,7 +1,10 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-    dom_tree::DomSpan, html::build_html, parse_node::ParseNode, util, Options, ParserConfig,
+    dom_tree::{DomSpan, HtmlDomNode, WithHtmlDomNode},
+    html::build_html,
+    parse_node::ParseNode,
+    util, Options, ParserConfig,
 };
 
 // TODO: Vec of enum for common kinds?
@@ -39,11 +42,22 @@ impl<T: VirtualNode + ?Sized> VirtualNode for Box<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct EmptyNode;
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct EmptyNode {
+    node: HtmlDomNode,
+}
 impl VirtualNode for EmptyNode {
     fn to_markup(&self) -> String {
         String::new()
+    }
+}
+impl WithHtmlDomNode for EmptyNode {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
     }
 }
 

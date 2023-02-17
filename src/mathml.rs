@@ -1,7 +1,7 @@
 use crate::{
     expander::Mode,
     functions,
-    mathml_tree::{EmptyMathNode, MathNode, MathNodeType, TextNode, WithMathDomNode},
+    mathml_tree::{EmptyMathNode, MathNode, MathNodeType, MathmlNode, TextNode, WithMathDomNode},
     parse_node::ParseNode,
     symbols::{self, LIGATURES},
     tree::ClassList,
@@ -33,24 +33,23 @@ pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> 
     TextNode::new(text)
 }
 
-// TODO: this should be able to avoid boxing
 /// Wrap the given array of notes in an `<mrow>` node if needed, i.e., unless the array has length
 /// 1. Always returns a single node.
-pub(crate) fn make_row<T: WithMathDomNode + 'static>(body: Vec<T>) -> Box<dyn WithMathDomNode> {
+pub(crate) fn make_row<T: WithMathDomNode + 'static>(body: Vec<T>) -> MathmlNode
+where
+    MathmlNode: From<T>,
+{
     if body.len() == 1 {
         let val = body.into_iter().nth(0).unwrap();
-        Box::new(val)
+        val.into()
     } else {
-        Box::new(MathNode::new(MathNodeType::MRow, body, ClassList::new()))
+        MathNode::new(MathNodeType::MRow, body, ClassList::new()).into()
     }
 }
 
-pub(crate) fn build_group(
-    group: Option<&ParseNode>,
-    options: &Options,
-) -> Box<dyn WithMathDomNode> {
+pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> MathmlNode {
     let Some(group) = group else {
-        return Box::new(MathNode::<EmptyMathNode>::new_empty(MathNodeType::MRow));
+        return MathNode::<EmptyMathNode>::new_empty(MathNodeType::MRow).into();
     };
 
     if let Some(mathml_builder) = functions::FUNCTIONS.find_mathml_builder_for_type(group.typ()) {
