@@ -269,7 +269,6 @@ pub(crate) fn make_ord(group: &ParseNode, options: &Options, typ: OrdType) -> Ht
                                 .to_string(),
                         ])
                         .collect();
-                    println!("make_symbol: {} {}", text, font_name);
                     make_symbol(text, &font_name, mode, Some(options), classes).into()
                 } // FIXME: There can be fonts added by plugins!
             }

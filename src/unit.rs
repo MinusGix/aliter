@@ -2,7 +2,22 @@ use crate::Options;
 
 /// Round `n` to 4 decimal places, or to the nearest 1/10,000th em.
 pub(crate) fn make_em(n: f64) -> String {
-    format!("{:.4}em", n)
+    // 0.0 -> 0em
+    // 0.1 -> 0.1em
+    // 0.01 -> 0.01em
+    // 0.001 -> 0.001em
+    // 0.0001 -> 0.0001em
+    // 0.00001 -> 0em
+    // 0.56789 -> 0.5679em
+
+    let mut n = n;
+    if n.abs() < 0.00001 {
+        n = 0.0;
+    } else {
+        n = (n * 10000.0).round() / 10000.0;
+    }
+
+    format!("{}em", n)
 }
 
 /// Convert a size measurement into a CSS em value for the current style/scale
@@ -13,7 +28,7 @@ pub(crate) fn calculate_size(size_val: &Measurement, options: &Options) -> f64 {
         let css_em = pt_per_unit / font_metrics.pt_per_em;
         // Unscale to make absolute units
         css_em / options.size_multiplier()
-    } else if let Measurement::Mu(mu) = &size_val {
+    } else if let Measurement::Mu(_mu) = &size_val {
         // 'mu' units scale with scriptstyle/scriptscriptstyle
         font_metrics.css_em_per_mu
     } else {
@@ -216,3 +231,21 @@ pub struct Em(pub f64);
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Mu(pub f64);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_make_em() {
+        assert_eq!(make_em(0.0), "0em");
+        assert_eq!(make_em(0.1), "0.1em");
+        assert_eq!(make_em(0.01), "0.01em");
+        assert_eq!(make_em(0.001), "0.001em");
+        assert_eq!(make_em(0.0001), "0.0001em");
+        assert_eq!(make_em(0.00001), "0em");
+        assert_eq!(make_em(0.56789), "0.5679em");
+        assert_eq!(make_em(1.42), "1.42em");
+        assert_eq!(make_em(1.0), "1em");
+    }
+}

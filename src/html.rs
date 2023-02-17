@@ -72,7 +72,7 @@ impl DomType {
 }
 
 /// Take an entire parse tree and build it into an appropriate set of HTML nodes.
-pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) -> Span<HtmlNode> {
+pub(crate) fn build_html(tree: Vec<ParseNode>, options: Options) -> Span<HtmlNode> {
     // Strip off any outer tag wrapper
     let (tag, tree) = if tree.len() == 1 && matches!(tree[0], ParseNode::Tag(_)) {
         let ParseNode::Tag(tag) = tree.into_iter().nth(0).unwrap() else {
@@ -179,9 +179,10 @@ pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) -> Span<Htm
         let strut = html_node.children.last_mut().unwrap();
         strut.node_mut().style.height = Some(Cow::Owned(make_em(height + depth)));
 
-        if depth != 0.0 {
-            strut.node_mut().style.vertical_align = Some(Cow::Owned(make_em(-depth)));
-        }
+        // TODO: katex includes it if it is defined. Do they use strings for this so it could be undefined? Should we do the same?
+        // if depth != 0.0 {
+        strut.node_mut().style.vertical_align = Some(Cow::Owned(make_em(-depth)));
+        // }
     }
 
     html_node
@@ -203,9 +204,10 @@ fn build_html_unbreakable(children: Vec<HtmlNode>, options: &Options) -> Span<Ht
     // expression, and the bottom of the HTML element falls at the depth of the expression.
     let mut strut = make_empty_span(vec!["strut".to_string()]);
     strut.node.style.height = Some(Cow::Owned(make_em(body.node.height + body.node.depth)));
-    if body.node.depth != 0.0 {
-        strut.node.style.vertical_align = Some(Cow::Owned(make_em(-body.node.depth)));
-    }
+    // TODO: katex includes it if it is defined. Do they use strings for this so it could be undefined? Should we do the same?
+    // if body.node.depth != 0.0 {
+    strut.node.style.vertical_align = Some(Cow::Owned(make_em(-body.node.depth)));
+    // }
     body.children.insert(0, strut.into());
 
     body
@@ -328,7 +330,7 @@ pub(crate) fn build_expression(
         is_root,
     );
 
-    todo!()
+    groups
 }
 
 // We use prev insert as a bool because the wacky callback method that KaTeX uses won't work in
@@ -359,6 +361,7 @@ fn traverse_non_space_nodes<F: Fn(&mut HtmlNode, &mut HtmlNode) -> Option<HtmlNo
                 None,
                 is_root,
             );
+            i += 1;
             continue;
         }
 
@@ -390,6 +393,7 @@ fn traverse_non_space_nodes<F: Fn(&mut HtmlNode, &mut HtmlNode) -> Option<HtmlNo
         }
 
         prev_insert_after = Some(i);
+        i += 1;
     }
 
     if next_some {

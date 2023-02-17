@@ -417,9 +417,10 @@ mod tests {
         let conf = ParserConfig::default();
 
         let simple_num = render_to_html_tree("4", conf.clone());
+        eprintln!("Finished render");
         // dbg!(simple_num);
-        dbg!(simple_num.to_markup());
+        println!("{}", simple_num.to_markup());
 
-        panic!();
+        // panic!();
     }
 }
