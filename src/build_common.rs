@@ -251,7 +251,7 @@ pub(crate) fn make_ord(group: &ParseNode, options: &Options, typ: OrdType) -> Ht
                 }
                 Some(Font::Main) | None => {
                     let font_name =
-                        retrieve_text_font_name("mathrm", options.font_weight, options.font_shape);
+                        retrieve_text_font_name("textrm", options.font_weight, options.font_shape);
                     let classes = classes
                         .into_iter()
                         .chain([
@@ -269,6 +269,7 @@ pub(crate) fn make_ord(group: &ParseNode, options: &Options, typ: OrdType) -> Ht
                                 .to_string(),
                         ])
                         .collect();
+                    println!("make_symbol: {} {}", text, font_name);
                     make_symbol(text, &font_name, mode, Some(options), classes).into()
                 } // FIXME: There can be fonts added by plugins!
             }
