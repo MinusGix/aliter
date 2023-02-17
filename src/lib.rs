@@ -33,6 +33,7 @@ pub mod mathml_tree;
 pub mod namespace;
 pub mod parse_node;
 pub mod parser;
+mod spacing_data;
 pub mod style;
 pub mod symbols;
 pub mod tree;

@@ -3,7 +3,10 @@ use std::{borrow::Cow, fmt::Debug, num::ParseIntError, ops::Range};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::expander::Mode;
+use crate::{
+    expander::Mode,
+    style::{StyleId, DISPLAY_STYLE, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
+};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct SourceLocation(pub Range<usize>);
@@ -103,6 +106,16 @@ pub enum Style {
     Display,
     Script,
     ScriptScript,
+}
+impl Style {
+    pub fn into_style_id(self) -> StyleId {
+        match self {
+            Style::Text => TEXT_STYLE,
+            Style::Display => DISPLAY_STYLE,
+            Style::Script => SCRIPT_STYLE,
+            Style::ScriptScript => SCRIPT_SCRIPT_STYLE,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

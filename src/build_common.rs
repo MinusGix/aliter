@@ -6,7 +6,7 @@ use crate::{
     font_metrics::{get_character_metrics, CharacterMetrics},
     symbols::{self, Font},
     tree::{ClassList, EmptyNode},
-    unit::{self, make_em},
+    unit::{self, calculate_size, make_em, Measurement},
     Options,
 };
 
@@ -132,6 +132,81 @@ pub(crate) fn bold_symbol(value: &str, mode: Mode, typ: OrdType) -> BoldSymbolIn
 }
 
 // TODO: make_ord
+
+fn are_classes_equiv(left: &ClassList, right: &ClassList) -> bool {
+    let left = left.iter().filter(|c| !c.is_empty());
+    let right = right.iter().filter(|c| !c.is_empty());
+
+    left.eq(right)
+}
+
+fn can_combine(prev: &SymbolNode, next: &SymbolNode) -> bool {
+    if !are_classes_equiv(&prev.node.classes, &next.node.classes)
+        || prev.skew != next.skew
+        || prev.node.max_font_size != next.node.max_font_size
+    {
+        return false;
+    }
+
+    // If prev and next are just `mbin`s or `mord`s we don't combine them so that the proper
+    // spacing can be preserved.
+    if prev.node.classes.len() == 1 {
+        let class = &prev.node.classes[0];
+        if class == "mbin" || class == "mord" {
+            return false;
+        }
+    }
+
+    if prev.node.style != next.node.style {
+        return false;
+    }
+
+    true
+}
+
+pub(crate) fn try_combine_chars(chars: &mut Vec<HtmlNode>) {
+    if chars.is_empty() {
+        return;
+    }
+
+    let mut i = 0;
+    loop {
+        let len = chars.len() - 1;
+        if i >= len {
+            break;
+        }
+
+        // TODO:
+        // let [prev, next] = chars.get_many_mut([i, i + 1]).unwrap();
+        let [ref mut prev, ref next] = &mut chars[i..=i + 1] else {
+            unreachable!()
+        };
+
+        let HtmlNode::Symbol(prev) = prev else {
+            continue;
+        };
+
+        let HtmlNode::Symbol(next) = next else {
+            continue;
+        };
+
+        if !can_combine(prev, next) {
+            continue;
+        }
+
+        prev.text.push_str(&next.text);
+        prev.node.height = prev.node.height.max(next.node.height);
+        prev.node.depth = prev.node.depth.max(next.node.depth);
+        // Use the last character's italic correction since we use it to add padding to the right
+        // of the span created from the combined characters.
+        prev.italic = next.italic;
+
+        // Remove the next node
+        chars.remove(i + 1);
+        // Counteract the removal by modifying our index
+        i -= 1;
+    }
+}
 
 fn size_element_for_children<T: WithHtmlDomNode>(node: &mut HtmlDomNode, children: &[T]) {
     let mut height: f64 = 0.0;
@@ -473,4 +548,20 @@ pub(crate) fn make_v_list<T: WithHtmlDomNode + Into<HtmlNode> + 'static>(
     vtable.node.depth = -min_pos;
 
     vtable.using_html_node()
+}
+
+/// Glue is a concept from TeX which is a flexible space between elements in either a vertical or
+/// horizontal list. In KaTeX, at least for now, it is a static space between elements in a
+/// horizontal layout.
+pub(crate) fn make_glue(measurement: Measurement, options: &Options) -> Span<HtmlNode> {
+    let mut rule = make_span(
+        vec!["mspace".to_string()],
+        vec![],
+        Some(options),
+        CssStyle::default(),
+    );
+    let size = calculate_size(&measurement, options);
+    rule.node.style.margin_right = Some(Cow::Owned(make_em(size)));
+
+    rule
 }
