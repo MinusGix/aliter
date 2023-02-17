@@ -3,7 +3,7 @@ use crate::{
     functions,
     mathml_tree::{EmptyMathNode, MathNode, MathNodeType, TextNode, WithMathDomNode},
     parse_node::ParseNode,
-    symbols::{self, ligatures},
+    symbols::{self, LIGATURES},
     tree::ClassList,
     util::char_code_for,
     Options,
@@ -18,7 +18,7 @@ pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> 
     let replace = symbols::SYMBOLS.get(mode, &text).and_then(|s| s.replace);
 
     if let Some(replace) = replace {
-        if text_char_code == Some(0xD835) && !ligatures.contains(&text.as_str()) {
+        if text_char_code == Some(0xD835) && !LIGATURES.contains(&text.as_str()) {
             if let Some(options) = options {
                 let font_family_tt =
                     options.font_family.len() > 4 && options.font_family[4..].starts_with("tt");

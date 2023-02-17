@@ -852,4 +852,4 @@ pub static SYMBOLS: Lazy<Symbols> = Lazy::new(|| {
     s
 });
 
-pub const ligatures: &'static [&'static str] = &["--", "---", "``", "''"];
+pub const LIGATURES: &'static [&'static str] = &["--", "---", "``", "''"];
