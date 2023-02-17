@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 
-use dom_tree::ClassList;
 use expander::Mode;
 use font_metrics::{get_global_metrics, FontMetrics};
 use lexer::Token;
@@ -10,11 +9,13 @@ use once_cell::sync::OnceCell;
 use parse_node::{Color, NodeInfo, ParseNode, TagNode};
 use parser::{ParseError, Parser, ParserConfig};
 use style::StyleId;
+use tree::ClassList;
 
 pub mod array;
 pub mod build_common;
 mod builtin_macros;
 pub mod delimiter;
+#[cfg(feature = "html")]
 pub mod dom_tree;
 pub mod environments;
 pub mod expander;
@@ -25,6 +26,8 @@ pub mod functions;
 pub mod html;
 pub mod lexer;
 pub mod macr;
+#[cfg(feature = "mathml")]
+pub mod mathml_tree;
 pub mod namespace;
 pub mod parse_node;
 pub mod parser;

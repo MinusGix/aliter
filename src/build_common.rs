@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use crate::{
-    dom_tree::{ClassList, CssStyle, DomSpan, HtmlDomNode, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{CssStyle, DomSpan, HtmlDomNode, Span, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     symbols::{self, Font},
-    tree::EmptyNode,
+    tree::{ClassList, EmptyNode},
     unit::{self, make_em},
     Options,
 };

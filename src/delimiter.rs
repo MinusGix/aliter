@@ -1,11 +1,12 @@
 use crate::{
     build_common::{self, make_span, VListElem, VListKern, VListParam, VListShiftChild},
-    dom_tree::{ClassList, CssStyle, DomSpan, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{CssStyle, DomSpan, Span, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     font_metrics_data,
     style::{StyleId, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
     symbols,
+    tree::ClassList,
     unit::make_em,
     util::{char_code_for, find_assoc_data},
     Options,

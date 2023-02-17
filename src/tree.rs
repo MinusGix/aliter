@@ -1,5 +1,8 @@
 use crate::dom_tree::HtmlDomNode;
 
+// TODO: Vec of enum for common kinds?
+pub type ClassList = Vec<String>;
+
 pub trait VirtualNode {
     // TODO: We somehow need to support translating into HTML nodes
     // We could use websys?

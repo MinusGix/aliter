@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     parse_node::Color,
-    tree::{DocumentFragment, VirtualNode},
+    tree::{ClassList, DocumentFragment, VirtualNode},
     util, Options,
 };
 
@@ -87,8 +87,6 @@ impl CssStyle {
 // TODO: We could do better by having keys be Cow<'static, str>?
 // Though I think you need a crate for a nicely behaving map type for that
 pub type Attributes = HashMap<String, String>;
-// TODO: Vec of enum for common kinds?
-pub type ClassList = Vec<String>;
 
 /// Returns the value that should go in `class="{}"`
 fn class_attr(classes: &ClassList) -> Option<String> {

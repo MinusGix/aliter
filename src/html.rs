@@ -1,8 +1,9 @@
 use crate::{
     build_common::{make_span, make_span_s},
-    dom_tree::{ClassList, CssStyle, DomSpan, WithHtmlDomNode},
+    dom_tree::{CssStyle, DomSpan, WithHtmlDomNode},
     functions,
     parse_node::ParseNode,
+    tree::ClassList,
     Options,
 };
 

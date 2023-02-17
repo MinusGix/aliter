@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     build_common::{make_line_span, make_span, make_v_list, VListElemShift, VListParam},
     delimiter,
-    dom_tree::{ClassList, CssStyle, WithHtmlDomNode},
+    dom_tree::{CssStyle, WithHtmlDomNode},
     expander::Mode,
     html,
     lexer::Token,
@@ -372,10 +372,12 @@ fn adjust_style(size: &StyleAuto, original_style: StyleId) -> StyleId {
     }
 }
 
+// TODO: should we just have this accept a `&GenFracNode`? Though we'd need a wrapper function to convert..
+#[cfg(feature = "html")]
 fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
-    let group = if let ParseNode::GenFrac(node) = node {
-        node
-    } else {
+    use crate::tree::ClassList;
+
+    let ParseNode::GenFrac(group) = node else {
         // TODO: Don't panic
         panic!()
     };
@@ -567,4 +569,18 @@ fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode>
         Some(options),
         CssStyle::default(),
     ))
+}
+
+#[cfg(feature = "mathml")]
+fn mathml_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
+    let ParseNode::GenFrac(group) = node else {
+        // TODO: Don't panic
+        panic!()
+    };
+
+    // let node = MathNode::new("mfrac".to_string(), vec![
+
+    // ]);
+
+    todo!()
 }
