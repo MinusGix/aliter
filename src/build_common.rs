@@ -184,7 +184,7 @@ pub(crate) fn make_line_span(
     );
     line.node.height = thickness
         .unwrap_or(options.font_metrics().default_rule_thickness)
-        .max(options.min_rule_thickness);
+        .max(options.min_rule_thickness.0);
     line.node.style.border_bottom_width = Some(Cow::Owned(unit::make_em(line.node.height)));
     line.node.max_font_size = 1.0;
     line

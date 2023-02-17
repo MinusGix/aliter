@@ -29,11 +29,11 @@ pub(crate) enum DomType {
 pub(crate) fn build_html(mut tree: Vec<ParseNode>, options: Options) {
     // Strip off any outer tag wrapper
     let (tag, tree) = if tree.len() == 1 && matches!(tree[0], ParseNode::Tag(_)) {
-        if let ParseNode::Tag(tag) = tree.remove(0) {
-            (Some(tag.tag), tag.body)
-        } else {
+        let ParseNode::Tag(tag) = tree.into_iter().nth(0).unwrap() else {
             unreachable!()
-        }
+        };
+
+        (Some(tag.tag), tag.body)
     } else {
         (None, tree)
     };
@@ -50,7 +50,9 @@ pub(crate) fn build_expression(
     surrounding: (Option<DomType>, Option<DomType>),
 ) {
     // let mut groups = Vec::new();
-    for expr in expression {}
+    // for expr in expression {
+    //     let output = build_group(Some(&expr), options, None);
+    // }
 
     todo!()
 }

@@ -1,6 +1,8 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::util;
+use crate::{
+    dom_tree::DomSpan, html::build_html, parse_node::ParseNode, util, Options, ParserConfig,
+};
 
 // TODO: Vec of enum for common kinds?
 pub type ClassList = Vec<String>;
@@ -43,4 +45,42 @@ impl VirtualNode for EmptyNode {
     fn to_markup(&self) -> String {
         String::new()
     }
+}
+
+#[cfg(feature = "html")]
+fn display_wrap(node: DomSpan, conf: ParserConfig) -> DomSpan {
+    use crate::{build_common::make_span, dom_tree::CssStyle};
+
+    if conf.display_mode {
+        let mut classes = vec!["katex-display".to_string()];
+        if conf.leq_no {
+            classes.push("leqno".to_string());
+        }
+
+        if conf.fleqn {
+            classes.push("fleqn".to_string());
+        }
+
+        make_span(classes, vec![node], None, CssStyle::default()).into_dom_span()
+    } else {
+        node
+    }
+}
+
+#[cfg(feature = "html")]
+fn build_html_tree(tree: Vec<ParseNode>, expr: &str, conf: ParserConfig) -> DomSpan {
+    use crate::{build_common::make_span, dom_tree::CssStyle};
+
+    let options = Options::from_parser_conf(&conf);
+
+    let html_node = build_html(tree, options);
+    // let katex_node = make_span(
+    //     vec!["katex".to_string()],
+    //     vec![html_node],
+    //     None,
+    //     CssStyle::default(),
+    // );
+
+    // display_wrap(katex_node, conf)
+    todo!()
 }

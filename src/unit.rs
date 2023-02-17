@@ -40,7 +40,7 @@ pub(crate) fn calculate_size(size_val: &Measurement, options: &Options) -> f64 {
         }
     };
 
-    (size_val.num() * scale).min(options.max_size as f64)
+    (size_val.num() * scale).min(options.max_size.0)
 }
 
 #[derive(Debug, Clone, PartialEq)]

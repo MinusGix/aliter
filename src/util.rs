@@ -56,6 +56,11 @@ impl RGBA {
         [self.r, self.g, self.b, self.a]
     }
 }
+impl ToString for RGBA {
+    fn to_string(&self) -> String {
+        format!("#{:02x}{:02x}{:02x}{:02x}", self.r, self.g, self.b, self.a)
+    }
+}
 
 /// Parse RGB text without a leading #
 pub(crate) fn parse_rgb(src: &str) -> Result<[u8; 3], ParseIntError> {

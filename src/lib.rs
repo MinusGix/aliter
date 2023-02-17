@@ -8,8 +8,9 @@ use lexer::Token;
 use once_cell::sync::OnceCell;
 use parse_node::{Color, NodeInfo, ParseNode, TagNode};
 use parser::{ParseError, Parser, ParserConfig};
-use style::StyleId;
+use style::{StyleId, DISPLAY_STYLE, TEXT_STYLE};
 use tree::ClassList;
+use unit::Em;
 
 pub mod array;
 pub mod build_common;
@@ -97,13 +98,33 @@ pub struct Options {
     pub font_family: Cow<'static, str>,
     pub font_weight: Option<FontWeight>,
     pub font_shape: Option<FontShape>,
-    // TODO: is this a float?
-    pub max_size: usize,
-    pub min_rule_thickness: f64,
+    pub max_size: Em,
+    pub min_rule_thickness: Em,
     /// This is separate per options instance
     font_metrics: OnceCell<FontMetrics>,
 }
 impl Options {
+    pub(crate) fn from_parser_conf(conf: &ParserConfig) -> Self {
+        Options {
+            style: if conf.display_mode {
+                DISPLAY_STYLE
+            } else {
+                TEXT_STYLE
+            },
+            color: None,
+            size: BASE_SIZE,
+            text_size: BASE_SIZE,
+            phantom: false,
+            font: Cow::Borrowed(""),
+            font_family: Cow::Borrowed(""),
+            font_weight: None,
+            font_shape: None,
+            max_size: conf.max_size,
+            min_rule_thickness: conf.min_rule_thickness,
+            font_metrics: OnceCell::new(),
+        }
+    }
+
     // TODO: Can we just do this on normal `Clone`?
     /// The intended method of cloning the options instance and then altering it. This clears the
     /// font metrics cache.
@@ -303,6 +324,45 @@ pub fn parse_tree<'a>(input: &'a str, conf: ParserConfig) -> Result<Vec<ParseNod
         Ok(tree)
     }
 }
+
+#[cfg(any(feature = "html", feature = "mathml"))]
+pub fn render_error(
+    err: ParseError,
+    expr: &str,
+    conf: ParserConfig,
+) -> dom_tree::Span<dom_tree::SymbolNode> {
+    use dom_tree::{CssStyle, SymbolNode};
+
+    // TODO: options.throwOnError?
+
+    let symbol = SymbolNode::new_text(expr.to_string());
+    let mut node = build_common::make_span(
+        vec!["katex-error".to_string()],
+        vec![symbol],
+        None,
+        CssStyle::default(),
+    );
+    // TODO: we probably want a separate impl
+    node.attributes
+        .insert("title".to_string(), format!("{:?}", err));
+    node.attributes.insert(
+        "style".to_string(),
+        format!("color:{}", conf.error_color.to_string()),
+    );
+
+    node
+}
+
+#[cfg(feature = "html")]
+pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::DomSpan {
+    todo!()
+    // match parse_tree(expr, conf.clone()) {
+    //     Ok(tree) => build_html_tree(tree, expr, conf),
+    //     Err(err) => render_error(err, expr, conf).into_dom_span(),
+    // }
+}
+
+// TODO: websys render function
 
 #[cfg(test)]
 mod tests {
