@@ -4,10 +4,13 @@ use crate::{
     mathml_tree::{EmptyMathNode, MathNode, MathNodeType, TextNode, WithMathDomNode},
     parse_node::ParseNode,
     symbols::{self, ligatures},
+    tree::ClassList,
     util::char_code_for,
     Options,
 };
 
+/// Takes a symbol and converts it into a MathML text node after performing optional replacement
+/// /from symbols.rs
 pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> TextNode {
     let text_char = text.chars().nth(0);
     let text_char_code = text_char.map(char_code_for);
@@ -28,6 +31,17 @@ pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> 
     }
 
     TextNode::new(text)
+}
+
+// TODO: this should be able to avoid boxing
+/// Wrap the given array of notes in an `<mrow>` node if needed, i.e., unless the array has length
+/// 1. Always returns a single node.
+pub(crate) fn make_row(body: Vec<Box<dyn WithMathDomNode>>) -> Box<dyn WithMathDomNode> {
+    if body.len() == 1 {
+        body[0]
+    } else {
+        Box::new(MathNode::new(MathNodeType::MRow, body, ClassList::new()))
+    }
 }
 
 pub(crate) fn build_group(
