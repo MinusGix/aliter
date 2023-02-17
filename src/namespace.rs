@@ -24,7 +24,7 @@ impl Namespace {
 
     /// End current nested group, restore values from before the group began.
     pub fn end_group(&mut self) {
-        debug_assert!(self.undefined_stack.is_empty(), "Unbalanced namespace destruction: attempted to pop global namespace. This is a library bug, please report it.");
+        debug_assert!(!self.undefined_stack.is_empty(), "Unbalanced namespace destruction: attempted to pop global namespace. This is a library bug, please report it.");
 
         if let Some(undefs) = self.undefined_stack.pop() {
             let (back, letter) = undefs.into_macros_iters();
