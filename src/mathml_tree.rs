@@ -1,4 +1,4 @@
-use crate::tree::{ClassList, VirtualNode};
+use crate::tree::{Attributes, ClassList, VirtualNode};
 
 /// MathML node types used in Aliter.
 pub enum MathNodeType {
@@ -69,6 +69,7 @@ pub struct MathNode<T: WithMathDomNode> {
     pub typ: MathNodeType,
     children: Vec<T>,
     pub classes: ClassList,
+    pub attributes: Attributes,
 }
 impl<T: WithMathDomNode> MathNode<T> {
     pub fn new(typ: MathNodeType, children: Vec<T>, classes: ClassList) -> MathNode<T> {
@@ -77,6 +78,7 @@ impl<T: WithMathDomNode> MathNode<T> {
             typ,
             children,
             classes,
+            attributes: Attributes::new(),
         }
     }
 }
