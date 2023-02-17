@@ -22,9 +22,8 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::GenFrac, 2)
             .with_allowed_in_argument(true),
         handler: Box::new(genfrac_handler),
-        // TODO:
         #[cfg(feature = "html")]
-        html_builder: None,
+        html_builder: Some(Box::new(html_builder)),
     });
 
     fns.insert_for_all_str(GENFRAC_NAMES.iter().copied(), genfrac);
@@ -32,7 +31,6 @@ pub fn add_functions(fns: &mut Functions) {
     let gen_cfrac = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::GenFrac, 2),
         handler: Box::new(genfrac_cfrac_handler),
-        // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
     });
@@ -42,7 +40,6 @@ pub fn add_functions(fns: &mut Functions) {
     let infix = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Infix, 0).with_infix(true),
         handler: Box::new(infix_handler),
-        // TODO:
         #[cfg(feature = "html")]
         html_builder: None,
     });
@@ -61,9 +58,8 @@ pub fn add_functions(fns: &mut Functions) {
                 ArgType::Mode(Mode::Math),
             ] as &[_]),
         handler: Box::new(genfrac2_handler),
-        // TODO:
         #[cfg(feature = "html")]
-        html_builder: None,
+        html_builder: Some(Box::new(html_builder)),
     });
 
     fns.insert(Cow::Borrowed("\\genfrac"), genfrac2);
@@ -88,9 +84,8 @@ pub fn add_functions(fns: &mut Functions) {
         ]
             as &[_]),
         handler: Box::new(genfrac_abovefrac_handler),
-        // TODO:
         #[cfg(feature = "html")]
-        html_builder: None,
+        html_builder: Some(Box::new(html_builder)),
     });
 
     fns.insert(Cow::Borrowed("\\\\abovefrac"), genfrac_abovefrac);
@@ -377,7 +372,7 @@ fn adjust_style(size: &StyleAuto, original_style: StyleId) -> StyleId {
     }
 }
 
-fn html_handler(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
+fn html_builder(node: &ParseNode, options: &Options) -> Box<dyn WithHtmlDomNode> {
     let group = if let ParseNode::GenFrac(node) = node {
         node
     } else {
