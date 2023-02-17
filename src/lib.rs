@@ -377,7 +377,7 @@ pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::Span<dom
     use tree::build_html_tree;
 
     match parse_tree(expr, conf.clone()) {
-        Ok(tree) => build_html_tree(tree, expr, conf),
+        Ok(tree) => build_html_tree(tree, conf),
         Err(err) => render_error(err, expr, conf).using_html_node(),
     }
 }
@@ -419,7 +419,7 @@ mod tests {
         let simple_num = render_to_html_tree("4", conf.clone());
         eprintln!("Finished render");
         // dbg!(simple_num);
-        println!("{}", simple_num.to_markup());
+        eprintln!("{}", simple_num.to_markup());
 
         // panic!();
     }

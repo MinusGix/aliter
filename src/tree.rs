@@ -23,6 +23,7 @@ pub(crate) fn class_attr(classes: &ClassList) -> Option<String> {
         Some(
             classes
                 .iter()
+                .filter(|c| !c.is_empty())
                 .map(|class| util::escape(class.as_str()))
                 .collect::<Vec<Cow<'_, str>>>()
                 .join(" "),
@@ -86,11 +87,7 @@ where
 }
 
 #[cfg(feature = "html")]
-pub(crate) fn build_html_tree(
-    tree: Vec<ParseNode>,
-    expr: &str,
-    conf: ParserConfig,
-) -> Span<HtmlNode> {
+pub(crate) fn build_html_tree(tree: Vec<ParseNode>, conf: ParserConfig) -> Span<HtmlNode> {
     use crate::{build_common::make_span, dom_tree::CssStyle};
 
     let options = Options::from_parser_conf(&conf);

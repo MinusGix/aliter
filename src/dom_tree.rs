@@ -93,7 +93,9 @@ fn to_markup_attr<T: VirtualNode>(
     let mut markup = format!("<{tag_name}");
 
     if let Some(classes) = class_attr(&node.classes) {
-        markup.push_str(&format!(" class=\"{}\"", classes));
+        markup.push_str(" class=\"");
+        markup.push_str(&classes);
+        markup.push('"');
     }
 
     if let Some(style) = node.style.as_style_attr() {
@@ -216,7 +218,14 @@ impl WithHtmlDomNode for HtmlNode {
     }
 
     fn node_mut(&mut self) -> &mut HtmlDomNode {
-        todo!()
+        match self {
+            HtmlNode::Empty(node) => node.node_mut(),
+            HtmlNode::DocumentFragment(node) => node.node_mut(),
+            HtmlNode::Span(node) => node.node_mut(),
+            HtmlNode::Anchor(node) => node.node_mut(),
+            HtmlNode::Img(node) => node.node_mut(),
+            HtmlNode::Symbol(node) => node.node_mut(),
+        }
     }
 }
 impl From<EmptyNode> for HtmlNode {
@@ -569,6 +578,7 @@ impl VirtualNode for SymbolNode {
         let mut markup = "<span".to_string();
 
         if let Some(classes) = class_attr(&self.node.classes) {
+            needs_span = true;
             markup.push_str(" class=\"");
             markup.push_str(&classes);
             markup.push('"');
@@ -599,7 +609,7 @@ impl VirtualNode for SymbolNode {
 
         let escaped = util::escape(&self.text);
         if needs_span {
-            markup.push('<');
+            markup.push('>');
             markup.push_str(&escaped);
             markup.push_str("</span>");
 
