@@ -27,6 +27,7 @@ pub mod def;
 pub mod genfrac;
 pub mod href;
 mod htmlmathml;
+mod lap;
 mod mclass;
 pub mod symbols_ord;
 
@@ -48,6 +49,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     genfrac::add_functions(&mut fns);
     htmlmathml::add_functions(&mut fns);
     href::add_functions(&mut fns);
+    lap::add_functions(&mut fns);
     mclass::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
 
