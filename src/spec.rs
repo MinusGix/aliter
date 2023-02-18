@@ -108,10 +108,14 @@ mod tests {
         }
     }
 
-    // TODO: is_not
     #[track_caller]
     fn to_parse(expr: &str, conf: ParserConfig) {
         expect_katex(expr, conf, TMode::Parse, None, None);
+    }
+
+    #[track_caller]
+    fn to_not_parse(expr: &str, conf: ParserConfig) {
+        expect_katex(expr, conf, TMode::Parse, Some(true), None);
     }
 
     #[track_caller]
@@ -229,5 +233,172 @@ mod tests {
             let mml = build_mathml(&parsed, contents, &default_options(), false, false);
             assert_eq!(mml.children.len(), 1);
         }
+    }
+
+    #[test]
+    fn a_punct_parser() {
+        let expr = ",;";
+
+        // should not fail
+        to_parse(expr, strict_conf());
+
+        {
+            // should build a list of puncts
+            let parse = parse_tree(expr, ParserConfig::default()).unwrap();
+
+            for group in parse {
+                let ParseNode::Atom(atom) = group else {
+                    panic!("Expected atom, got {:?}", group);
+                };
+
+                assert_eq!(atom.family, Atom::Punct, "Expected punctuation atom");
+            }
+        }
+    }
+
+    #[test]
+    fn an_open_parser() {
+        let expr = "([";
+
+        // should not fail
+        to_parse(expr, ParserConfig::default());
+
+        {
+            // should build a list of opens
+            let parse = parse_tree(expr, ParserConfig::default()).unwrap();
+
+            for group in parse {
+                let ParseNode::Atom(atom) = group else {
+                    panic!("Expected atom, got {:?}", group);
+                };
+
+                assert_eq!(atom.family, Atom::Open, "Expected open atom");
+            }
+        }
+    }
+
+    #[test]
+    fn a_close_parser() {
+        let expr = ")]?!";
+
+        // should not fail
+        to_parse(expr, ParserConfig::default());
+
+        {
+            // should build a list of closes
+            let parse = parse_tree(expr, ParserConfig::default()).unwrap();
+
+            for group in parse {
+                let ParseNode::Atom(atom) = group else {
+                    panic!("Expected atom, got {:?}", group);
+                };
+
+                assert_eq!(atom.family, Atom::Close, "Expected close atom");
+            }
+        }
+    }
+
+    #[test]
+    fn a_katex_parser() {
+        // should not fail
+        to_parse("\\KaTeX", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_subscript_and_superscript_parser() {
+        // should not fail on superscripts
+        to_parse("x^2", ParserConfig::default());
+
+        // should not fail on subscripts
+        to_parse("x_3", ParserConfig::default());
+
+        // should not fail on both subscripts and superscripts
+        to_parse("x^2_3", ParserConfig::default());
+        to_parse("x_2^3", ParserConfig::default());
+
+        // should not fail when there is no nucleus
+        to_parse("^3", ParserConfig::default());
+        to_parse("^3+", ParserConfig::default());
+        to_parse("_2", ParserConfig::default());
+        to_parse("^3_2", ParserConfig::default());
+        to_parse("_2^3", ParserConfig::default());
+
+        // should produce supsubs for superscript
+        {
+            let parse = parse_tree("x^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(supsub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            assert!(supsub.base.is_some());
+            assert!(supsub.sup.is_some());
+            assert!(supsub.sub.is_none());
+        }
+
+        // should produce supsubs for subscript
+        {
+            let parse = parse_tree("x_3", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(supsub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            assert!(supsub.base.is_some());
+            assert!(supsub.sub.is_some());
+            assert!(supsub.sup.is_none());
+        }
+
+        // should produce supsubs for ^_
+        {
+            let parse = parse_tree("x^2_3", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(supsub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            assert!(supsub.base.is_some());
+            assert!(supsub.sup.is_some());
+            assert!(supsub.sub.is_some());
+        }
+
+        // should produce supsubs for _^
+        {
+            let parse = parse_tree("x_3^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(supsub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            assert!(supsub.base.is_some());
+            assert!(supsub.sup.is_some());
+            assert!(supsub.sub.is_some());
+        }
+
+        // should produce the same thing regardless of order
+        to_parse_like("x^2_3", "x_3^2", ParserConfig::default());
+
+        // should not parse double subscripts or superscripts
+        to_not_parse("x^x^x", ParserConfig::default());
+        to_not_parse("x_x_x", ParserConfig::default());
+        to_not_parse("x_x^x_x", ParserConfig::default());
+        to_not_parse("x_x^x^x", ParserConfig::default());
+        to_not_parse("x^x_x_x", ParserConfig::default());
+        to_not_parse("x^x_x^x", ParserConfig::default());
+
+        // should work correctly with {}s
+        to_parse("x^{2+3}", ParserConfig::default());
+        to_parse("x_{3-2}", ParserConfig::default());
+        to_parse("x^{2+3}_3", ParserConfig::default());
+        to_parse("x^2_{3-2}", ParserConfig::default());
+        to_parse("x^{2+3}_{3-2}", ParserConfig::default());
+        to_parse("x_{3-2}^{2+3}", ParserConfig::default());
+        to_parse("x_3^{2+3}", ParserConfig::default());
+        to_parse("x_{3-2}^2", ParserConfig::default());
+
+        // should work with nested super/subscripts
+        to_parse("x^{x^x}", ParserConfig::default());
+        to_parse("x^{x_x}", ParserConfig::default());
+        to_parse("x_{x^x}", ParserConfig::default());
+        to_parse("x_{x_x}", ParserConfig::default());
+
+        // should work with Unicode (sub|super)script characters
+        to_parse("A² + B²⁺³ + ¹²C + E₂³ + F₂₊₃", ParserConfig::default());
     }
 }
