@@ -28,6 +28,7 @@ mod font;
 pub mod genfrac;
 pub mod href;
 mod htmlmathml;
+mod kern;
 mod lap;
 mod mclass;
 mod ord_group;
@@ -54,6 +55,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     genfrac::add_functions(&mut fns);
     htmlmathml::add_functions(&mut fns);
     href::add_functions(&mut fns);
+    kern::add_functions(&mut fns);
     lap::add_functions(&mut fns);
     mclass::add_functions(&mut fns);
     ord_group::add_functions(&mut fns);

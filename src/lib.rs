@@ -257,7 +257,7 @@ impl Options {
         self
     }
 
-    pub fn with_font_weight(mut self, font_weight: FontWeight) -> Options {
+    pub fn with_text_font_weight(mut self, font_weight: FontWeight) -> Options {
         self.font_weight = Some(font_weight);
         self.font_metrics = Default::default();
         self
