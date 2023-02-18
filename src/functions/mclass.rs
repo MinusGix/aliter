@@ -121,7 +121,7 @@ pub fn add_functions(fns: &mut Functions) {
     fns.insert_for_all_str(["\\stackrel", "\\overset", "\\underset"].into_iter(), stack);
 }
 
-fn bin_rel_class(arg: &ParseNode) -> String {
+pub(crate) fn bin_rel_class(arg: &ParseNode) -> String {
     // \binrel@ spacing varies with (bin|rel|ord) of the atom in the argument.
     // (by rendering separately and with {}s before and after, and measuring
     // the change in spacing).  We'll do roughly the same by detecting the

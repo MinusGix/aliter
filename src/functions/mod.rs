@@ -24,6 +24,7 @@ pub mod char;
 pub mod color;
 pub mod cr;
 pub mod def;
+mod font;
 pub mod genfrac;
 pub mod href;
 mod htmlmathml;
@@ -48,6 +49,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     color::add_functions(&mut fns);
     cr::add_functions(&mut fns);
     def::add_functions(&mut fns);
+    font::add_functions(&mut fns);
     genfrac::add_functions(&mut fns);
     htmlmathml::add_functions(&mut fns);
     href::add_functions(&mut fns);
