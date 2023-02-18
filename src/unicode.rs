@@ -103,7 +103,7 @@ pub static SYMBOLS: Lazy<HashMap<char, String>> = Lazy::new(|| {
 
 // TODO: We don't need a regex for this!
 pub static SUB_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new("^[₊₋₌₍₎₀₁₂₃₄₅₆₇₈₉ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓᵦᵧᵨᵩᵪ").unwrap());
+    Lazy::new(|| Regex::new("^[₊₋₌₍₎₀₁₂₃₄₅₆₇₈₉ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓᵦᵧᵨᵩᵪ]").unwrap());
 
 /// Maps between (Sub, Sup) characters
 pub(crate) const SUBS_AND_SUPS: &'static [(char, char)] = &[
