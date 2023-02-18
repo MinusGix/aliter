@@ -143,9 +143,30 @@ impl Measurement {
         })
     }
 }
+impl ToString for Measurement {
+    fn to_string(&self) -> String {
+        match self {
+            Measurement::Pt(x) => x.to_string(),
+            Measurement::Mm(x) => x.to_string(),
+            Measurement::Cm(x) => x.to_string(),
+            Measurement::In(x) => x.to_string(),
+            Measurement::Bp(x) => x.to_string(),
+            Measurement::Pc(x) => x.to_string(),
+            Measurement::Dd(x) => x.to_string(),
+            Measurement::Cc(x) => x.to_string(),
+            Measurement::Nd(x) => x.to_string(),
+            Measurement::Nc(x) => x.to_string(),
+            Measurement::Sp(x) => x.to_string(),
+            Measurement::Px(x) => x.to_string(),
+            Measurement::Ex(x) => x.to_string(),
+            Measurement::Em(x) => x.to_string(),
+            Measurement::Mu(x) => x.to_string(),
+        }
+    }
+}
 
 macro_rules! mk_pt_unit {
-    ( $(#[$outer:meta])* $name:ident : $pt_size:expr) => {
+    ( $(#[$outer:meta])* $name:ident ($text:expr) : $pt_size:expr) => {
         $(#[$outer])*
         #[derive(Debug, Copy, Clone, PartialEq)]
         pub struct $name(pub f64);
@@ -157,80 +178,120 @@ macro_rules! mk_pt_unit {
             pub fn unit_pt_size() -> f64 {
                 $pt_size
             }
+
+            pub fn name() -> &'static str {
+                $text
+            }
+        }
+        impl ToString for $name {
+            fn to_string(&self) -> String {
+                format!("{}{}", self.0, $text)
+            }
         }
     };
 }
 
 mk_pt_unit!(
     /// TeX point
-    Pt : 1.0
+    Pt ("pt") : 1.0
 );
 
 mk_pt_unit!(
     /// Millimeter
-    Mm : 7227.0 / 2540.0
+    Mm ("mm") : 7227.0 / 2540.0
 );
 
 mk_pt_unit!(
     /// Centimeter
-    Cm : 7227.0 / 254.0
+    Cm ("cm") : 7227.0 / 254.0
 );
 
 mk_pt_unit!(
     /// Inch
-    In : 72.27
+    In ("in") : 72.27
 );
 
 mk_pt_unit!(
     /// Big PostScript points
-    Bp : 803.0 / 800.0
+    Bp ("bp" ): 803.0 / 800.0
 );
 
 mk_pt_unit!(
     /// Pica
-    Pc : 12.0
+    Pc ("pc") : 12.0
 );
 
 mk_pt_unit!(
     /// Didot
-    Dd : 1238.0 / 1157.0
+    Dd ("dd") : 1238.0 / 1157.0
 );
 
 mk_pt_unit!(
     /// Cicero (12 didot)
-    Cc : 14856.0 / 1157.0
+    Cc ("cc") : 14856.0 / 1157.0
 );
 
 mk_pt_unit!(
     /// New didot
-    Nd : 685.0 / 642.0
+    Nd ("nd") : 685.0 / 642.0
 );
 
 mk_pt_unit!(
     /// New Cicero (12 didot)
-    Nc : 1370.0 / 107.0
+    Nc ("nc") : 1370.0 / 107.0
 );
 
 mk_pt_unit!(
     /// Scaled point (TeX's internal smallest unit)
-    Sp : 1.0 / 65536.0
+    Sp ("sp") : 1.0 / 65536.0
 );
 
 mk_pt_unit!(
     /// Pixel
     /// \pdfpxdimen defaults to 1 bp in pdfTeX and LuaTeX
-    Px : 803.0 / 800.0
+    Px ("px") : 803.0 / 800.0
 );
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ex(pub f64);
+impl Ex {
+    pub fn name() -> &'static str {
+        "ex"
+    }
+}
+impl ToString for Ex {
+    fn to_string(&self) -> String {
+        format!("{}ex", self.0)
+    }
+}
 
 /// An f64 in em, which is a unit relative to the font size of the parent
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Em(pub f64);
+impl Em {
+    pub fn name() -> &'static str {
+        "em"
+    }
+}
+// Note: you should typically use make_em() instead of this
+impl ToString for Em {
+    fn to_string(&self) -> String {
+        format!("{}em", self.0)
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Mu(pub f64);
+impl Mu {
+    pub fn name() -> &'static str {
+        "mu"
+    }
+}
+impl ToString for Mu {
+    fn to_string(&self) -> String {
+        format!("{}mu", self.0)
+    }
+}
 
 #[cfg(test)]
 mod tests {
