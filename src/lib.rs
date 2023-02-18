@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 
+#[cfg(feature = "html")]
+use dom_tree::Span;
 use expander::Mode;
 use font_metrics::{get_global_metrics, FontMetrics};
 use lexer::Token;
@@ -9,7 +11,7 @@ use once_cell::sync::OnceCell;
 use parse_node::{Color, NodeInfo, ParseNode, TagNode};
 use parser::{ParseError, Parser, ParserConfig};
 use style::{StyleId, DISPLAY_STYLE, TEXT_STYLE};
-use tree::ClassList;
+use tree::{build_tree, ClassList, MlNode, OutputType};
 use unit::Em;
 
 pub mod array;
@@ -34,6 +36,7 @@ pub mod namespace;
 pub mod parse_node;
 pub mod parser;
 mod spacing_data;
+mod spec;
 pub mod style;
 pub mod symbols;
 pub mod tree;
@@ -370,10 +373,30 @@ pub fn render_error(
     node
 }
 
+#[cfg(any(feature = "html", feature = "mathml"))]
+pub(crate) fn render_to_dom_tree(
+    expr: &str,
+    conf: ParserConfig,
+    output: OutputType,
+) -> Span<MlNode> {
+    use crate::dom_tree::HtmlNode;
+
+    match parse_tree(expr, conf.clone()) {
+        Ok(tree) => build_tree(tree, expr, conf, output),
+        #[cfg(feature = "html")]
+        Err(err) => render_error(err, expr, conf)
+            .map(HtmlNode::from)
+            .map(MlNode::from),
+        // TODO: don't panic
+        #[cfg(not(feature = "html"))]
+        Err(err) => panic!("Error parsing tree: {:?}", err),
+    }
+}
+
 #[cfg(feature = "html")]
 /// Generates and returns the katex build tree, with just HTML (no MathML).  
 /// This is used for advanced use cases (like rendering to custom output).
-pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> dom_tree::Span<dom_tree::HtmlNode> {
+pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> Span<dom_tree::HtmlNode> {
     use tree::build_html_tree;
 
     match parse_tree(expr, conf.clone()) {

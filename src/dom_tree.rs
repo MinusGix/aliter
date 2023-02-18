@@ -367,18 +367,22 @@ impl<T: VirtualNode> Span<T> {
             width: None,
         }
     }
+
+    pub fn map<U: VirtualNode>(self, f: impl Fn(T) -> U) -> Span<U> {
+        Span {
+            node: self.node,
+            children: self.children.into_iter().map(f).collect(),
+            attributes: self.attributes,
+            width: self.width,
+        }
+    }
 }
 impl<T: VirtualNode> Span<T>
 where
     HtmlNode: From<T>,
 {
     pub fn using_html_node(self) -> Span<HtmlNode> {
-        Span {
-            node: self.node,
-            children: self.children.into_iter().map(HtmlNode::from).collect(),
-            attributes: self.attributes,
-            width: self.width,
-        }
+        self.map(HtmlNode::from)
     }
 }
 impl<T: WithHtmlDomNode + 'static> Span<T> {

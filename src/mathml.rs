@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 
 use crate::{
     build_common::FONT_MAP,
+    dom_tree::{CssStyle, Span},
     expander::Mode,
     font_metrics::get_character_metrics,
     functions,
@@ -235,4 +236,78 @@ pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> Mathm
     } else {
         panic!("Got group of unknown type")
     }
+}
+
+/// Takes a full parse tree and settings and builds a MathML representation of it. In particular,
+/// we put the elements from building the parse tree into a `<semantics>` tag so we can also
+/// include that TeX source as an annotation.
+///
+/// Note that we actually return a dom tree element with a `<math>` inside itso we can do
+/// appropriate styling.
+pub fn build_mathml(
+    tree: Vec<ParseNode>,
+    tex_expr: &str,
+    options: &Options,
+    is_display_mode: bool,
+    for_mathml_only: bool,
+) -> Span<MathmlNode> {
+    let expression = build_expression(tree, options, None);
+
+    // TODO: Make a pass thru the MathML similar to buildHTML.traverseNonSpaceNodes
+    // and add spacing nodes. This is necessary only adjacent to math operators
+    // like \sin or \lim or to subsup elements that contain math operators.
+    // MathML takes care of the other spacing issues.
+
+    // Wrap up the expression in a row so it is presented in the semantics tag correctly, unless
+    // it is a single `<mrow>` or `<mtable>`.
+    let wrapper = if expression.len() == 1 {
+        if let MathmlNode::Math(expr) = &expression[0] {
+            if expr.typ == MathNodeType::MRow || expr.typ == MathNodeType::MTable {
+                Some(expr.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let wrapper =
+        wrapper.unwrap_or_else(|| MathNode::new(MathNodeType::MRow, expression, ClassList::new()));
+
+    // Build a TeX annotation of the source
+    let tex_text = TextNode::new(tex_expr.to_string());
+    let annotation = MathNode::new(MathNodeType::Annotation, vec![tex_text], ClassList::new())
+        .with_attribute("encoding", "application/x-tex");
+
+    let semantics: MathNode<MathmlNode> = MathNode::new(
+        MathNodeType::Semantics,
+        vec![wrapper.into(), annotation.into()],
+        ClassList::new(),
+    );
+
+    let mut math = MathNode::new(MathNodeType::Math, vec![semantics], ClassList::new())
+        .with_attribute("xmlns", "http://www.w3.org/1998/Math/MathML");
+    if is_display_mode {
+        math.set_attribute("display", "block");
+    }
+
+    // You can't style `<math>` nodes, so we wrap the node in a span.
+    let wrapper_class = if for_mathml_only {
+        "katex"
+    } else {
+        "katex-mathml"
+    };
+
+    // We create the span directly rather than through make_span, like katex does.
+    // make_span calls size_element_from_children but that just sets height/depth/max_font_size to
+    // 0.0 if they don't actually exist on the object (like they don't on a math node).
+    // and we don't actually need to bother with those.
+    Span::new(
+        vec![wrapper_class.to_string()],
+        vec![math.into()],
+        None,
+        CssStyle::default(),
+    )
 }

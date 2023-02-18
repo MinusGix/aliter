@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     dom_tree::{HtmlDomNode, HtmlNode, Span, WithHtmlDomNode},
     html::build_html,
+    mathml_tree::MathmlNode,
     parse_node::ParseNode,
     util, Options, ParserConfig,
 };
@@ -92,7 +93,7 @@ pub(crate) fn build_html_tree(tree: Vec<ParseNode>, conf: ParserConfig) -> Span<
 
     let options = Options::from_parser_conf(&conf);
 
-    let html_node = build_html(tree, options);
+    let html_node = build_html(tree, &options);
     let katex_node = make_span(
         vec!["katex".to_string()],
         vec![html_node],
@@ -101,4 +102,113 @@ pub(crate) fn build_html_tree(tree: Vec<ParseNode>, conf: ParserConfig) -> Span<
     );
 
     display_wrap(katex_node, conf)
+}
+
+#[cfg(feature = "mathml")]
+pub(crate) fn build_mathml_tree(
+    tree: Vec<ParseNode>,
+    expr: &str,
+    conf: ParserConfig,
+) -> Span<MathmlNode> {
+    use crate::mathml::build_mathml;
+
+    let options = Options::from_parser_conf(&conf);
+
+    build_mathml(tree, expr, &options, conf.display_mode, true)
+}
+
+/// Multi-purpose node that can be either HTML or MathML
+#[cfg(any(feature = "html", feature = "mathml"))]
+pub enum MlNode {
+    #[cfg(feature = "html")]
+    Html(HtmlNode),
+    #[cfg(feature = "mathml")]
+    Mathml(MathmlNode),
+    Span(Span<MlNode>),
+}
+#[cfg(any(feature = "html", feature = "mathml"))]
+impl VirtualNode for MlNode {
+    fn to_markup(&self) -> String {
+        match self {
+            #[cfg(feature = "html")]
+            MlNode::Html(node) => node.to_markup(),
+            #[cfg(feature = "mathml")]
+            MlNode::Mathml(node) => node.to_markup(),
+            MlNode::Span(node) => node.to_markup(),
+        }
+    }
+}
+#[cfg(feature = "html")]
+impl From<HtmlNode> for MlNode {
+    fn from(node: HtmlNode) -> Self {
+        MlNode::Html(node)
+    }
+}
+#[cfg(feature = "mathml")]
+impl From<MathmlNode> for MlNode {
+    fn from(node: MathmlNode) -> Self {
+        MlNode::Mathml(node)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OutputType {
+    #[cfg(feature = "html")]
+    Html,
+    #[cfg(feature = "mathml")]
+    Mathml,
+    #[cfg(all(feature = "html", feature = "mathml"))]
+    HtmlAndMathml,
+}
+
+#[cfg(all(feature = "html", feature = "mathml"))]
+pub(crate) fn build_tree(
+    tree: Vec<ParseNode>,
+    expr: &str,
+    conf: ParserConfig,
+    output: OutputType,
+) -> Span<MlNode> {
+    use crate::{build_common, dom_tree::CssStyle, mathml::build_mathml};
+
+    let options = Options::from_parser_conf(&conf);
+
+    match output {
+        #[cfg(feature = "html")]
+        OutputType::Html => {
+            let html = build_html(tree, &options);
+            let node = build_common::make_span(
+                vec!["katex".to_string()],
+                vec![html],
+                None,
+                CssStyle::default(),
+            );
+            display_wrap(node, conf).map(MlNode::from)
+        }
+        #[cfg(feature = "mathml")]
+        OutputType::Mathml => {
+            build_mathml(tree, expr, &options, conf.display_mode, true).map(MlNode::from)
+        }
+        #[cfg(all(feature = "html", feature = "mathml"))]
+        OutputType::HtmlAndMathml => {
+            let html = build_html(tree.clone(), &options).map(MlNode::from);
+            let height = html.node.height;
+            let depth = html.node.depth;
+            let max_font_size = html.node.max_font_size;
+            let mathml =
+                build_mathml(tree, expr, &options, conf.display_mode, false).map(MlNode::from);
+            let mut node = Span::new(
+                vec!["katex".to_string()],
+                vec![html, mathml],
+                None,
+                CssStyle::default(),
+            )
+            .map(MlNode::Span);
+
+            node.node.height = height;
+            node.node.depth = depth;
+            node.node.max_font_size = max_font_size;
+
+            node
+        }
+    }
 }

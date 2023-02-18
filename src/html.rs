@@ -72,7 +72,7 @@ impl DomType {
 }
 
 /// Take an entire parse tree and build it into an appropriate set of HTML nodes.
-pub(crate) fn build_html(tree: Vec<ParseNode>, options: Options) -> Span<HtmlNode> {
+pub(crate) fn build_html(tree: Vec<ParseNode>, options: &Options) -> Span<HtmlNode> {
     // Strip off any outer tag wrapper
     let (tag, tree) = if tree.len() == 1 && matches!(tree[0], ParseNode::Tag(_)) {
         let ParseNode::Tag(tag) = tree.into_iter().nth(0).unwrap() else {
