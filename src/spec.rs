@@ -226,7 +226,7 @@ mod tests {
             // Should return one group, not a fragment
             let contents = "\\mathinner{\\langle{\\psi}\\rangle}";
             let parsed = parse_tree(contents, ParserConfig::default()).unwrap();
-            let mml = build_mathml(parsed, contents, &default_options(), false, false);
+            let mml = build_mathml(&parsed, contents, &default_options(), false, false);
             assert_eq!(mml.children.len(), 1);
         }
     }

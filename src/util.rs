@@ -5,6 +5,7 @@ use regex::Regex;
 
 use crate::{
     expander::Mode,
+    parse_node::ParseNode,
     style::{StyleId, DISPLAY_STYLE, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
     tree::ClassList,
 };
@@ -222,6 +223,37 @@ pub(crate) fn escape(text: &str) -> Cow<'_, str> {
             ""
         }
     })
+}
+
+fn get_base_elem(group: &ParseNode) -> &ParseNode {
+    match group {
+        ParseNode::OrdGroup(ord) => {
+            if ord.body.len() == 1 {
+                get_base_elem(&ord.body[0])
+            } else {
+                group
+            }
+        }
+        ParseNode::Color(color) => {
+            if color.body.len() == 1 {
+                get_base_elem(&color.body[0])
+            } else {
+                group
+            }
+        }
+        ParseNode::Font(font) => get_base_elem(&font.body),
+        _ => group,
+    }
+}
+
+pub(crate) fn is_character_box(group: &ParseNode) -> bool {
+    let base_elem = get_base_elem(group);
+
+    // These are all the types of groups which hold single characters
+    matches!(
+        base_elem,
+        ParseNode::MathOrd(_) | ParseNode::TextOrd(_) | ParseNode::Atom(_)
+    )
 }
 
 static UPPERCASE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("([A-Z])").unwrap());

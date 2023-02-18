@@ -88,7 +88,7 @@ where
 }
 
 #[cfg(feature = "html")]
-pub(crate) fn build_html_tree(tree: Vec<ParseNode>, conf: ParserConfig) -> Span<HtmlNode> {
+pub(crate) fn build_html_tree(tree: &[ParseNode], conf: ParserConfig) -> Span<HtmlNode> {
     use crate::{build_common::make_span, dom_tree::CssStyle};
 
     let options = Options::from_parser_conf(&conf);
@@ -106,7 +106,7 @@ pub(crate) fn build_html_tree(tree: Vec<ParseNode>, conf: ParserConfig) -> Span<
 
 #[cfg(feature = "mathml")]
 pub(crate) fn build_mathml_tree(
-    tree: Vec<ParseNode>,
+    tree: &[ParseNode],
     expr: &str,
     conf: ParserConfig,
 ) -> Span<MathmlNode> {
@@ -163,7 +163,7 @@ pub enum OutputType {
 
 #[cfg(all(feature = "html", feature = "mathml"))]
 pub(crate) fn build_tree(
-    tree: Vec<ParseNode>,
+    tree: &[ParseNode],
     expr: &str,
     conf: ParserConfig,
     output: OutputType,
@@ -190,7 +190,7 @@ pub(crate) fn build_tree(
         }
         #[cfg(all(feature = "html", feature = "mathml"))]
         OutputType::HtmlAndMathml => {
-            let html = build_html(tree.clone(), &options).map(MlNode::from);
+            let html = build_html(tree, &options).map(MlNode::from);
             let height = html.node.height;
             let depth = html.node.depth;
             let max_font_size = html.node.max_font_size;

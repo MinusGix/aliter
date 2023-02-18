@@ -130,13 +130,13 @@ pub(crate) fn get_variant<G: SymbolParseNode + Any + 'static>(
 }
 
 pub(crate) fn build_expression(
-    expression: Vec<ParseNode>,
+    expression: &[ParseNode],
     options: &Options,
     is_ord_group: Option<bool>,
 ) -> Vec<MathmlNode> {
     if expression.len() == 1 {
-        let first = expression.into_iter().nth(0).unwrap();
-        let mut group = build_group(Some(&first), options);
+        let first = expression.iter().nth(0).unwrap();
+        let mut group = build_group(Some(first), options);
         if is_ord_group == Some(true) {
             if let MathmlNode::Math(group) = &mut group {
                 if group.typ == MathNodeType::Mo {
@@ -218,7 +218,7 @@ pub(crate) fn build_expression(
 /// Equivalent to [`build_expression`], but wraps the elements in an `<mrow>` if there's more than
 /// one.
 pub(crate) fn build_expression_row(
-    expression: Vec<ParseNode>,
+    expression: &[ParseNode],
     options: &Options,
     is_ord_group: Option<bool>,
 ) -> MathmlNode {
@@ -245,7 +245,7 @@ pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> Mathm
 /// Note that we actually return a dom tree element with a `<math>` inside itso we can do
 /// appropriate styling.
 pub fn build_mathml(
-    tree: Vec<ParseNode>,
+    tree: &[ParseNode],
     tex_expr: &str,
     options: &Options,
     is_display_mode: bool,

@@ -42,7 +42,7 @@ pub fn add_functions(fns: &mut Functions) {
             };
 
             let elements =
-                html::build_expression(group.body.clone(), options, RealGroup::False, (None, None));
+                html::build_expression(&group.body, options, RealGroup::False, (None, None));
 
             build_common::make_anchor(group.href.clone(), ClassList::new(), elements, options)
                 .into()
@@ -53,7 +53,7 @@ pub fn add_functions(fns: &mut Functions) {
                 panic!()
             };
 
-            let math = mathml::build_expression_row(group.body.clone(), options, None);
+            let math = mathml::build_expression_row(&group.body, options, None);
             let mut math = match math {
                 MathmlNode::Math(math) => math,
                 _ => MathNode::new(MathNodeType::MRow, vec![math], ClassList::new()),

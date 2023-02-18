@@ -382,7 +382,7 @@ pub(crate) fn render_to_dom_tree(
     use crate::dom_tree::HtmlNode;
 
     match parse_tree(expr, conf.clone()) {
-        Ok(tree) => build_tree(tree, expr, conf, output),
+        Ok(tree) => build_tree(&tree, expr, conf, output),
         #[cfg(feature = "html")]
         Err(err) => render_error(err, expr, conf)
             .map(HtmlNode::from)
@@ -400,7 +400,7 @@ pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> Span<dom_tree::Htm
     use tree::build_html_tree;
 
     match parse_tree(expr, conf.clone()) {
-        Ok(tree) => build_html_tree(tree, conf),
+        Ok(tree) => build_html_tree(&tree, conf),
         Err(err) => render_error(err, expr, conf).using_html_node(),
     }
 }

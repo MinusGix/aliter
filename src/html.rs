@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     build_common::{self, make_empty_span, make_span, make_span_s},
-    dom_tree::{CssStyle, HtmlDomNode, HtmlNode, Span, WithHtmlDomNode},
+    dom_tree::{CssStyle, HtmlNode, Span, WithHtmlDomNode},
     functions,
     parse_node::ParseNode,
     spacing_data::{SPACINGS, TIGHT_SPACINGS},
@@ -72,19 +72,19 @@ impl DomType {
 }
 
 /// Take an entire parse tree and build it into an appropriate set of HTML nodes.
-pub(crate) fn build_html(tree: Vec<ParseNode>, options: &Options) -> Span<HtmlNode> {
+pub(crate) fn build_html(tree: &[ParseNode], options: &Options) -> Span<HtmlNode> {
     // Strip off any outer tag wrapper
     let (tag, tree) = if tree.len() == 1 && matches!(tree[0], ParseNode::Tag(_)) {
-        let ParseNode::Tag(tag) = tree.into_iter().nth(0).unwrap() else {
+        let ParseNode::Tag(tag) = tree.iter().nth(0).unwrap() else {
             unreachable!()
         };
 
-        (Some(tag.tag), tag.body)
+        (Some(&tag.tag), tag.body.as_slice())
     } else {
         (None, tree)
     };
 
-    let mut expression = build_expression(tree, &options, RealGroup::Root, (None, None));
+    let mut expression = build_expression(&tree, &options, RealGroup::Root, (None, None));
 
     let eqn_num =
         if expression.len() == 2 && expression[1].node().classes.iter().any(|c| c == "tag") {
@@ -157,7 +157,7 @@ pub(crate) fn build_html(tree: Vec<ParseNode>, options: &Options) -> Span<HtmlNo
     // Now, if there was a tag, build it too and append it as a final child.
     let has_tag_child = tag.is_some();
     if let Some(tag) = tag {
-        let tag_child = build_expression(tag, &options, RealGroup::True, (None, None));
+        let tag_child = build_expression(&tag, &options, RealGroup::True, (None, None));
         let mut tag_child = build_html_unbreakable(tag_child, &options);
         tag_child.node.classes = vec!["tag".to_string()];
 
@@ -214,13 +214,13 @@ fn build_html_unbreakable(children: Vec<HtmlNode>, options: &Options) -> Span<Ht
 }
 
 pub(crate) fn build_expression(
-    expression: Vec<ParseNode>,
+    expression: &[ParseNode],
     options: &Options,
     real_group: RealGroup,
     surrounding: (Option<DomType>, Option<DomType>),
 ) -> Vec<HtmlNode> {
     let mut groups = Vec::new();
-    for expr in &expression {
+    for expr in expression {
         let output = build_group(Some(&expr), options, None);
         match output {
             HtmlNode::DocumentFragment(frag) => {
