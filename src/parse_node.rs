@@ -44,7 +44,7 @@ pub enum ParseNode {
     HorizBrace(HorizBraceNode),
     Href(HrefNode),
     Html(HtmlNode),
-    HtmlMathML(HtmlMathMLNode),
+    HtmlMathml(HtmlMathmlNode),
     IncludeGraphics(IncludeGraphicsNode),
     Infix(InfixNode),
     Internal(InternalNode),
@@ -105,7 +105,7 @@ impl ParseNode {
             ParseNode::HorizBrace(a) => &a.info,
             ParseNode::Href(a) => &a.info,
             ParseNode::Html(a) => &a.info,
-            ParseNode::HtmlMathML(a) => &a.info,
+            ParseNode::HtmlMathml(a) => &a.info,
             ParseNode::IncludeGraphics(a) => &a.info,
             ParseNode::Infix(a) => &a.info,
             ParseNode::Internal(a) => &a.info,
@@ -167,7 +167,7 @@ impl ParseNode {
             ParseNode::HorizBrace(a) => &mut a.info,
             ParseNode::Href(a) => &mut a.info,
             ParseNode::Html(a) => &mut a.info,
-            ParseNode::HtmlMathML(a) => &mut a.info,
+            ParseNode::HtmlMathml(a) => &mut a.info,
             ParseNode::IncludeGraphics(a) => &mut a.info,
             ParseNode::Infix(a) => &mut a.info,
             ParseNode::Internal(a) => &mut a.info,
@@ -245,7 +245,7 @@ impl ParseNode {
             ParseNode::HorizBrace(_) => ParseNodeType::HorizBrace,
             ParseNode::Href(_) => ParseNodeType::Href,
             ParseNode::Html(_) => ParseNodeType::Html,
-            ParseNode::HtmlMathML(_) => ParseNodeType::HtmlMathML,
+            ParseNode::HtmlMathml(_) => ParseNodeType::HtmlMathml,
             ParseNode::IncludeGraphics(_) => ParseNodeType::IncludeGraphics,
             ParseNode::Infix(_) => ParseNodeType::Infix,
             ParseNode::Internal(_) => ParseNodeType::Internal,
@@ -341,7 +341,7 @@ impl EqNoLoc for ParseNode {
             (ParseNode::HorizBrace(a), ParseNode::HorizBrace(b)) => a.eq_no_loc(b),
             (ParseNode::Href(a), ParseNode::Href(b)) => a.eq_no_loc(b),
             (ParseNode::Html(a), ParseNode::Html(b)) => a.eq_no_loc(b),
-            (ParseNode::HtmlMathML(a), ParseNode::HtmlMathML(b)) => a.eq_no_loc(b),
+            (ParseNode::HtmlMathml(a), ParseNode::HtmlMathml(b)) => a.eq_no_loc(b),
             (ParseNode::IncludeGraphics(a), ParseNode::IncludeGraphics(b)) => a.eq_no_loc(b),
             (ParseNode::Infix(a), ParseNode::Infix(b)) => a.eq_no_loc(b),
             (ParseNode::Internal(a), ParseNode::Internal(b)) => a.eq_no_loc(b),
@@ -405,7 +405,7 @@ pub enum ParseNodeType {
     HorizBrace,
     Href,
     Html,
-    HtmlMathML,
+    HtmlMathml,
     IncludeGraphics,
     Infix,
     Internal,
@@ -1020,15 +1020,15 @@ impl EqNoLoc for HtmlNode {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HtmlMathMLNode {
+pub struct HtmlMathmlNode {
     pub html: Vec<ParseNode>,
-    pub math_ml: Vec<ParseNode>,
+    pub mathml: Vec<ParseNode>,
     pub info: NodeInfo,
 }
-impl EqNoLoc for HtmlMathMLNode {
-    fn eq_no_loc(&self, o: &HtmlMathMLNode) -> bool {
+impl EqNoLoc for HtmlMathmlNode {
+    fn eq_no_loc(&self, o: &HtmlMathmlNode) -> bool {
         self.html.eq_no_loc(&o.html)
-            && self.math_ml.eq_no_loc(&o.math_ml)
+            && self.mathml.eq_no_loc(&o.mathml)
             && self.info.eq_no_loc(&o.info)
     }
 }

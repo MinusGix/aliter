@@ -190,7 +190,7 @@ mod tests {
             let parse = parse_tree(expr, ParserConfig::default()).unwrap();
 
             for group in parse {
-                let group = if let ParseNode::HtmlMathML(group) = group {
+                let group = if let ParseNode::HtmlMathml(group) = group {
                     assert_eq!(group.html.len(), 1);
                     group.html.into_iter().nth(0).unwrap()
                 } else {
