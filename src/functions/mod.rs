@@ -29,6 +29,7 @@ pub mod href;
 mod htmlmathml;
 mod lap;
 mod mclass;
+mod symbols_op;
 pub mod symbols_ord;
 
 // TODO: Put specific function groups under features? Eh
@@ -51,6 +52,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     href::add_functions(&mut fns);
     lap::add_functions(&mut fns);
     mclass::add_functions(&mut fns);
+    symbols_op::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
 
     fns
