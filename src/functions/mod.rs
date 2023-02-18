@@ -33,6 +33,7 @@ mod mclass;
 mod ord_group;
 mod symbols_op;
 pub mod symbols_ord;
+mod text;
 
 // TODO: Put specific function groups under features? Eh
 pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
@@ -58,6 +59,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     ord_group::add_functions(&mut fns);
     symbols_op::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
+    text::add_functions(&mut fns);
 
     fns
 });
