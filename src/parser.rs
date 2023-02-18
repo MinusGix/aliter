@@ -864,12 +864,16 @@ impl<'a, 'f> Parser<'a, 'f> {
         let mut text = String::new();
         loop {
             let next_token = self.fetch()?;
-            if next_token.is_eof() || !regex.is_match(&next_token.content) {
+            // TODO: this is less efficient than it could be?
+            let test_text = format!("{}{}", text, next_token.content);
+            if next_token.is_eof() || !regex.is_match(&test_text) {
                 break;
             }
 
             last_token_loc = next_token.loc.clone();
-            text.push_str(&next_token.content);
+            text = test_text;
+
+            self.consume();
         }
 
         if text.is_empty() {
