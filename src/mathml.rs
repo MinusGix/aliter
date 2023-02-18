@@ -234,7 +234,7 @@ pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> Mathm
     if let Some(mathml_builder) = functions::FUNCTIONS.find_mathml_builder_for_type(group.typ()) {
         mathml_builder(group, options)
     } else {
-        panic!("Got group of unknown type")
+        panic!("Got group of unknown type: {:?}", group.typ())
     }
 }
 

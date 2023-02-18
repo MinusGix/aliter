@@ -21,7 +21,7 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(|ctx, args, _opt_args| {
             let body = args[0].clone();
             ParseNode::MClass(MClassNode {
-                m_class: format!("m{}", ctx.func_name),
+                m_class: format!("m{}", &ctx.func_name[5..]),
                 is_character_box: util::is_character_box(&body),
                 body: ord_argument(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
