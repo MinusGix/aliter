@@ -15,6 +15,7 @@ use super::{BuilderFunctionSpec, FunctionPropSpec, Functions};
 pub fn add_functions(fns: &mut Functions) {
     let atom = Arc::new(BuilderFunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Atom, 0),
+        #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {
             let ParseNode::Atom(atom) = group else {
                 panic!();
@@ -24,6 +25,7 @@ pub fn add_functions(fns: &mut Functions) {
 
             math_sym(&atom.text, atom.info.mode, options, vec![class]).into()
         })),
+        #[cfg(feature = "mathml")]
         mathml_builder: Some(Box::new(|group, options| {
             let ParseNode::Atom(atom) = group else {
                 panic!();
