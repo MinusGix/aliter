@@ -26,6 +26,7 @@ pub mod cr;
 pub mod def;
 pub mod genfrac;
 pub mod href;
+mod mclass;
 pub mod symbols_ord;
 
 // TODO: Put specific function groups under features? Eh
@@ -45,6 +46,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     def::add_functions(&mut fns);
     genfrac::add_functions(&mut fns);
     href::add_functions(&mut fns);
+    mclass::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
 
     fns

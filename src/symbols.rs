@@ -23,6 +23,18 @@ pub enum Atom {
     Punct,
     Rel,
 }
+impl Atom {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Atom::Bin => "bin",
+            Atom::Close => "close",
+            Atom::Inner => "inner",
+            Atom::Open => "open",
+            Atom::Punct => "punct",
+            Atom::Rel => "rel",
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NonAtom {
     AccentToken,
