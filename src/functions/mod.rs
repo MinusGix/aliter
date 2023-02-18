@@ -216,6 +216,19 @@ pub struct FunctionSpec {
     #[cfg(feature = "mathml")]
     pub mathml_builder: Option<MathmlBuilderFn>,
 }
+impl std::fmt::Debug for FunctionSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FunctionSpec")
+            .field("prop", &self.prop)
+            .field(
+                "handler",
+                &"Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>",
+            )
+            .field("html_builder", &self.html_builder.is_some())
+            .field("mathml_builder", &self.mathml_builder.is_some())
+            .finish()
+    }
+}
 
 pub struct BuilderFunctionSpec {
     pub prop: FunctionPropSpec,

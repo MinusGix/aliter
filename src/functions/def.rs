@@ -107,7 +107,7 @@ pub fn add_functions(fns: &mut Functions) {
             }
 
             // replacement text, enclosed in '{' and '}' and properly nested
-            let arg = ctx.parser.gullet.consume_arg::<&str>(&[]).unwrap();
+            let arg = ctx.parser.gullet.consume_arg().unwrap();
             let mut tokens = arg.tokens;
 
             if let Some(insert) = insert {

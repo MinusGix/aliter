@@ -1,6 +1,10 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use crate::lexer::Token;
+use crate::{
+    expander::MacroExpander,
+    lexer::{Lexer, LexerConf, Token},
+    parser::ParseError,
+};
 
 /// The set of backslash macros and letter macros
 /// We use `Arc` so that we can be used on multiple threads and because we need to be able to
@@ -8,6 +12,8 @@ use crate::lexer::Token;
 /// them.
 #[derive(Debug, Clone)]
 pub struct Macros<V = Arc<MacroReplace>> {
+    // TODO: use Cow<'static, str> since most macro names are known at compile time!
+    // We may have to use indexmap for that. Optional crate feature?
     pub(crate) back_macros: HashMap<String, V>,
     // TODO: Logically, most replacements are going to be within typical ascii range, which is very
     // narrow relative to entire unicode range.
@@ -25,6 +31,10 @@ impl<V> Macros<V> {
         self.back_macros.contains_key(name)
     }
 
+    pub fn contains_letter_macro(&self, name: char) -> bool {
+        self.letter_macros.contains_key(&name)
+    }
+
     pub fn get_back_macro(&self, name: &str) -> Option<&V> {
         self.back_macros.get(name)
     }
@@ -33,12 +43,24 @@ impl<V> Macros<V> {
         self.back_macros.get_mut(name)
     }
 
+    pub fn get_letter_macro(&self, name: char) -> Option<&V> {
+        self.letter_macros.get(&name)
+    }
+
+    pub fn get_letter_macro_mut(&mut self, name: char) -> Option<&mut V> {
+        self.letter_macros.get_mut(&name)
+    }
+
     pub fn take_back_macro(&mut self, name: &str) -> Option<(String, V)> {
         self.back_macros.remove_entry(name)
     }
 
-    pub fn insert_back_macro(&mut self, name: String, repl: V) {
-        self.back_macros.insert(name, repl);
+    pub fn take_letter_macro(&mut self, name: char) -> Option<(char, V)> {
+        self.letter_macros.remove_entry(&name)
+    }
+
+    pub fn insert_back_macro(&mut self, name: impl Into<String>, repl: V) {
+        self.back_macros.insert(name.into(), repl);
     }
 
     pub fn insert_letter_macro(&mut self, name: char, repl: V) {
@@ -109,10 +131,97 @@ pub enum MacroIdentifier<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub enum MacroVal<'exp, 'text> {
+    Text(Cow<'text, str>),
+    Expansion(MacroExpansion<'exp>),
+}
+impl<'exp, 'text> MacroVal<'exp, 'text> {
+    pub fn empty_text() -> MacroVal<'exp, 'text> {
+        MacroVal::Text(Cow::Borrowed(""))
+    }
+
+    pub fn into_expansion(
+        self,
+        lexer_conf: &LexerConf,
+    ) -> Result<MacroExpansion<'exp>, ParseError> {
+        match self {
+            MacroVal::Text(text) => {
+                // TODO: this is more inefficient than it needs to be
+                let mut num_args = 0;
+                if text.contains('#') {
+                    let stripped = text.replace("##", "");
+                    while stripped.contains(&format!("#{}", num_args + 1)) {
+                        num_args += 1;
+                    }
+                }
+
+                let mut body_lexer = Lexer::new(&text, lexer_conf.clone());
+                let mut tokens = Vec::new();
+                loop {
+                    let tok = body_lexer.lex()?;
+                    if tok.is_eof() {
+                        break;
+                    }
+
+                    // We unfortunately have to do this to ensure the lifetimes are right
+                    tokens.push(tok.into_owned());
+                }
+
+                tokens.reverse();
+
+                Ok(MacroExpansion {
+                    tokens,
+                    num_args,
+                    delimiters: None,
+                    unexpandable: false,
+                })
+            }
+            MacroVal::Expansion(exp) => Ok(exp),
+        }
+    }
+}
+impl<'exp, 'text> From<MacroExpansion<'exp>> for MacroVal<'exp, 'text> {
+    fn from(exp: MacroExpansion<'exp>) -> Self {
+        MacroVal::Expansion(exp)
+    }
+}
+
 pub enum MacroReplace {
     /// Replace it with text
     Text(String),
     Expansion(MacroExpansion<'static>),
+    Func(
+        Box<
+            dyn for<'a, 'f> Fn(
+                    &mut MacroExpander<'a, 'f>,
+                ) -> Result<MacroVal<'a, 'static>, ParseError>
+                + Send
+                + Sync
+                + 'static,
+        >,
+    ),
+}
+impl MacroReplace {
+    pub fn exec<'a, 'f>(
+        &self,
+        exp: &mut MacroExpander<'a, 'f>,
+    ) -> Result<MacroVal<'a, 'static>, ParseError> {
+        match self {
+            // TODO: it'd be nice to avoid the clone; Could be done in many cases by allowing macroreplace with a Cow<'static, str>
+            MacroReplace::Text(text) => Ok(MacroVal::Text(Cow::Owned(text.clone()))),
+            MacroReplace::Expansion(exp) => Ok(MacroVal::Expansion(exp.clone())),
+            MacroReplace::Func(f) => (f)(exp),
+        }
+    }
+}
+impl std::fmt::Debug for MacroReplace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MacroReplace::Text(text) => f.debug_tuple("Text").field(text).finish(),
+            MacroReplace::Expansion(exp) => f.debug_tuple("Expansion").field(exp).finish(),
+            MacroReplace::Func(_) => f.debug_tuple("Func").finish(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -132,9 +241,20 @@ pub struct MacroArg<'a> {
 //    version into expanded tokens/text
 #[derive(Debug, Clone)]
 pub struct MacroExpansion<'a> {
+    // TODO: should this be a smallvec?
     /// Tokens in reverse order
     pub tokens: Vec<Token<'a>>,
     pub num_args: u16,
     pub delimiters: Option<Vec<Vec<Cow<'static, str>>>>,
     pub unexpandable: bool,
+}
+impl<'a> MacroExpansion<'a> {
+    pub fn new(tokens: Vec<Token<'a>>, num_args: u16) -> Self {
+        Self {
+            tokens,
+            num_args,
+            delimiters: None,
+            unexpandable: false,
+        }
+    }
 }

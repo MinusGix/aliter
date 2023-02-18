@@ -180,11 +180,11 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
             }
 
             let start = self.pop_token()?;
-            let arg = self.consume_arg(&["]"])?;
+            let arg = self.consume_arg_delim(&["]"])?;
 
             (start, arg.end, arg.tokens)
         } else {
-            let arg = self.consume_arg::<&str>(&[])?;
+            let arg = self.consume_arg()?;
             (arg.start, arg.end, arg.tokens)
         };
 
@@ -202,9 +202,13 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         Ok(Some(Token::new_opt("", loc)))
     }
 
+    pub fn consume_arg(&mut self) -> Result<MacroArg<'a>, ParseError> {
+        self.consume_arg_delim::<String>(&[])
+    }
+
     /// Consume an argument from the token stream, and return the resulting array of tokens
     /// and the start/end token
-    pub fn consume_arg<T: AsRef<str>>(
+    pub fn consume_arg_delim<T: AsRef<str>>(
         &mut self,
         delimiters: &[T],
     ) -> Result<MacroArg<'a>, ParseError> {
@@ -284,13 +288,19 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         })
     }
 
+    /// Consume the specified number of arguments from the token stream
+    /// and return the resulting array of arguments
+    pub fn consume_args(&mut self, arg_num: usize) -> Result<Vec<Vec<Token<'a>>>, ParseError> {
+        self.consume_args_delim::<String>(arg_num, &[])
+    }
+
     // TODO: It would be nice to make the delimiters more generic
     /// Consume the specified number of (delimited) arguments from the token stream
     /// and return the resulting array of arguments
-    pub fn consume_args(
+    pub fn consume_args_delim<T: AsRef<str>>(
         &mut self,
         arg_num: usize,
-        delimiters: &[Vec<impl AsRef<str>>],
+        delimiters: &[Vec<T>],
     ) -> Result<Vec<Vec<Token<'a>>>, ParseError> {
         if !delimiters.is_empty() {
             if delimiters.len() != arg_num + 1 {
@@ -314,8 +324,44 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
             } else {
                 &[]
             };
-            let arg = self.consume_arg(delims)?;
+            let arg = self.consume_arg_delim(delims)?;
             args.push(arg.tokens);
+        }
+
+        Ok(args)
+    }
+
+    pub fn consume_args_n<const N: usize>(&mut self) -> Result<[Vec<Token<'a>>; N], ParseError> {
+        self.consume_args_delim_n::<N, String>(&[])
+    }
+
+    pub fn consume_args_delim_n<const N: usize, T: AsRef<str>>(
+        &mut self,
+        delimiters: &[Vec<T>],
+    ) -> Result<[Vec<Token<'a>>; N], ParseError> {
+        if !delimiters.is_empty() {
+            if delimiters.len() != N + 1 {
+                return Err(ParseError::MismatchDelimitersArgsLength);
+            }
+
+            let delimiters = &delimiters[0];
+            for delim in delimiters {
+                let token = self.pop_token()?;
+                if token.content != delim.as_ref() {
+                    return Err(ParseError::MismatchMacroDefinition);
+                }
+            }
+        }
+
+        let mut args: [Vec<Token>; N] = std::array::from_fn(|_| Vec::new());
+        for i in 0..N {
+            let delims = if !delimiters.is_empty() {
+                delimiters[i + 1].as_slice()
+            } else {
+                &[]
+            };
+            let arg = self.consume_arg_delim(delims)?;
+            args[i] = arg.tokens;
         }
 
         Ok(args)
@@ -356,7 +402,7 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
                 && name.starts_with('\\')
                 && !self.is_defined(name)
             {
-                return Err(ParseError::UndefinedControlSequence);
+                return Err(ParseError::UndefinedControlSequence(name.to_string()));
             }
 
             self.push_token(top_token.clone());
@@ -376,7 +422,7 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         let num_args = expansion.num_args as usize;
         let delimiters = expansion.delimiters.as_deref().unwrap_or(&[]);
 
-        let args = self.consume_args(num_args, delimiters)?;
+        let args = self.consume_args_delim(num_args, delimiters)?;
         if num_args != 0 {
             // paste arguments in place of placeholders
             let tokens_len = tokens.len();
@@ -530,50 +576,20 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         // Is this skipping letter macro expansion?
         // TODO: This can be a function!
         let definition = if let Some(def) = self.macros.get_back_macro(name) {
-            def
+            def.clone()
         } else {
             return Ok(None);
         };
-        match definition.as_ref() {
-            MacroReplace::Text(text) => {
-                // TODO: This is more inefficient than it needs to be
-                let mut num_args = 0;
-                if text.contains('#') {
-                    let stripped = text.replace("##", "");
-                    while stripped.contains(&format!("#{}", num_args + 1)) {
-                        num_args += 1;
-                    }
-                }
 
-                let mut body_lexer = Lexer::new(text, self.lexer.conf.clone());
-                let mut tokens = Vec::new();
-                loop {
-                    let tok = body_lexer.lex()?;
-                    if tok.is_eof() {
-                        break;
-                    }
-
-                    // We unfortunately have to do this to ensure the lifetimes are right
-                    tokens.push(tok.into_owned());
-                }
-
-                tokens.reverse();
-
-                Ok(Some(MacroExpansion {
-                    tokens,
-                    num_args,
-                    delimiters: None,
-                    unexpandable: false,
-                }))
-            }
-            MacroReplace::Expansion(exp) => Ok(Some(exp.clone())),
-        }
+        let val = definition.exec(self)?;
+        let expansion = val.into_expansion(&self.lexer.conf)?;
+        Ok(Some(expansion))
     }
 
     /// Checks whether a command is currently 'defined' (it has some functionality)
     /// meaning that it's a macro (in the current group), a function, a symbol, or
     /// or one of the special commands listed in `implicit_commands `
-    fn is_defined(&self, name: &str) -> bool {
+    pub(crate) fn is_defined(&self, name: &str) -> bool {
         self.macros.contains_back_macro(name)
             || self.functions.get(name).is_some()
             || symbols::SYMBOLS.contains_key(Mode::Math, name)
@@ -586,7 +602,7 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         if let Some(macr) = self.macros.get_back_macro(name) {
             // if it is a string or a function or !unexpandable
             match macr.as_ref() {
-                MacroReplace::Text(_) => true,
+                MacroReplace::Text(_) | MacroReplace::Func(_) => true,
                 MacroReplace::Expansion(exp) => !exp.unexpandable,
             }
         } else if let Some(func) = self.functions.get(name) {

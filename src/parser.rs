@@ -46,7 +46,8 @@ pub enum ParseError {
     UnexpectedEOF,
     /// (Pos, char)
     UnexpectedChar(usize, char),
-    UndefinedControlSequence,
+    /// (name)
+    UndefinedControlSequence(String),
 
     PrimitiveCantBeOptional,
 
@@ -84,6 +85,18 @@ pub enum ParseError {
     InvalidUnit,
 
     TagOnlyDisplayEquation,
+
+    // Macro errors
+    CharMissingArgument,
+    CharInvalidBaseDigit,
+
+    NewCommandFirstArgMustBeName,
+    /// `\\newcommand`: Attempting to redefine command, use `\\renewcommand` instead
+    NewCommandAttemptingToRedefine(String),
+    /// `\\renewcommand`: Command does not exist, use `\\newcommand` instead
+    NewCommandAttemptingToDefine(String),
+    /// Multiple `\\tag` defs
+    MultipleTag,
 }
 
 /// Configuration options for parsing.
@@ -1100,7 +1113,9 @@ impl<'a, 'f> Parser<'a, 'f> {
                 && !is_implicit_command(&first_token.content)
             {
                 if self.conf.throw_on_error {
-                    return Err(ParseError::UndefinedControlSequence);
+                    return Err(ParseError::UndefinedControlSequence(
+                        first_token.content.to_string(),
+                    ));
                 }
 
                 let res = self.format_unsupported_cmd(&first_token.content);

@@ -47,7 +47,15 @@ impl Namespace {
     }
 
     pub fn get_back_macro(&self, name: &str) -> Option<&Arc<MacroReplace>> {
-        self.current.get_back_macro(name)
+        self.current
+            .get_back_macro(name)
+            .or_else(|| self.builtins.get_back_macro(name))
+    }
+
+    pub fn get_letter_macro(&self, name: char) -> Option<&Arc<MacroReplace>> {
+        self.current
+            .get_letter_macro(name)
+            .or_else(|| self.builtins.get_letter_macro(name))
     }
 
     pub fn set_global_back_macro(&mut self, name: String, repl: Option<Arc<MacroReplace>>) {
@@ -69,9 +77,10 @@ impl Namespace {
         }
     }
 
-    pub fn set_back_macro(&mut self, name: String, repl: Option<Arc<MacroReplace>>) {
+    pub fn set_back_macro(&mut self, name: impl Into<String>, repl: Option<Arc<MacroReplace>>) {
         // Undo this set at the end of this group, unless an undo already is already in place
         // in which case, that older value is the correct one.
+        let name: String = name.into();
 
         if let Some(undef) = self.undefined_stack.last_mut() {
             if !undef.contains_back_macro(&name) {
@@ -83,6 +92,22 @@ impl Namespace {
             self.current.insert_back_macro(name, repl);
         } else {
             let _ = self.current.take_back_macro(&name);
+        }
+    }
+
+    pub fn set_letter_macro(&mut self, name: char, repl: Option<Arc<MacroReplace>>) {
+        // Undo this set at the end of this group, unless an undo already is already in place
+        // in which case, that older value is the correct one.
+        if let Some(undef) = self.undefined_stack.last_mut() {
+            if !undef.contains_letter_macro(name) {
+                undef.insert_letter_macro(name, self.current.get_letter_macro(name).cloned());
+            }
+        }
+
+        if let Some(repl) = repl {
+            self.current.insert_letter_macro(name, repl);
+        } else {
+            let _ = self.current.take_letter_macro(name);
         }
     }
 }
