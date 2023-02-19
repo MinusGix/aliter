@@ -124,6 +124,16 @@ mod tests {
         expect_equivalent(actual, expected, conf, TMode::Parse, false)
     }
 
+    #[track_caller]
+    fn to_build(expr: &str, conf: ParserConfig) {
+        expect_katex(expr, conf, TMode::Build, None, None);
+    }
+
+    #[track_caller]
+    fn to_not_build(expr: &str, conf: ParserConfig) {
+        expect_katex(expr, conf, TMode::Build, Some(true), None);
+    }
+
     #[test]
     fn a_parser() {
         // should not fail on an empty string
@@ -400,5 +410,79 @@ mod tests {
 
         // should work with Unicode (sub|super)script characters
         to_parse("A² + B²⁺³ + ¹²C + E₂³ + F₂₊₃", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_subscript_and_superscript_tree_builder() {
+        // should not fail when there is no nucleus
+        to_build("^3", ParserConfig::default());
+        to_build("_3", ParserConfig::default());
+        to_build("^3_2", ParserConfig::default());
+        to_build("_2^3", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_parser_with_limit_controls() {
+        // should fail when the limit control is not preceded by an op node
+        to_not_parse("3\nolimits_2^2", ParserConfig::default());
+        to_not_parse("\\sqrt\\limits_2^2", ParserConfig::default());
+        to_not_parse("45 +\nolimits 45", ParserConfig::default());
+
+        // should parse when the limit control directly follows an op node
+        to_parse("\\int\\limits_2^2 3", ParserConfig::default());
+        to_parse("\\sum\\nolimits_3^4 4", ParserConfig::default());
+
+        // should parse when the limit control is in the sup/sub area of an op node
+        to_parse("\\int_2^2\\limits", ParserConfig::default());
+        to_parse("\\int^2\\nolimits_2", ParserConfig::default());
+        to_parse("\\int_2\\limits^2", ParserConfig::default());
+
+        // should allow multiple limit controls in the sup/sub area of an op node
+        to_parse("\\int_2\\nolimits^2\\limits 3", ParserConfig::default());
+        to_parse("\\int\\nolimits\\limits_2^2", ParserConfig::default());
+        to_parse("\\int\\limits\\limits\\limits_2^2", ParserConfig::default());
+
+        // should have the rightmost limit control determine the limits property of the preceding op node
+        {
+            let parse = parse_tree("\\int\\nolimits\\limits_2^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(sup_sub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            let Some(ParseNode::Op(base)) = sup_sub.base.as_deref() else {
+                panic!("Expected Op, got {:?}", sup_sub.base);
+            };
+
+            assert!(base.limits);
+        }
+
+        {
+            let parse = parse_tree("\\int\\limits_2\\nolimits^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(sup_sub) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+
+            let Some(ParseNode::Op(base)) = sup_sub.base.as_deref() else {
+                panic!("Expected Op, got {:?}", sup_sub.base);
+            };
+
+            assert!(!base.limits);
+        }
+    }
+
+    #[test]
+    fn a_group_parser() {
+        // should not fail
+        to_parse("{xy}", ParserConfig::default());
+
+        // should produce a single ord
+        {
+            let parse = parse_tree("{xy}", ParserConfig::default()).unwrap();
+            let ParseNode::OrdGroup(ord) = &parse[0] else {
+                panic!("Expected Ord, got {:?}", parse[0]);
+            };
+
+            assert!(!ord.body.is_empty());
+        }
     }
 }
