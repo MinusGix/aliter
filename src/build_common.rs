@@ -449,6 +449,19 @@ impl<T: WithHtmlDomNode> VListElem<T> {
         }
     }
 
+    pub(crate) fn new_margin_left(
+        elem: T,
+        margin_left: impl Into<Cow<'static, str>>,
+    ) -> VListElem<T> {
+        VListElem {
+            elem,
+            margin_left: Some(margin_left.into()),
+            margin_right: None,
+            wrapper_classes: ClassList::default(),
+            wrapper_style: CssStyle::default(),
+        }
+    }
+
     pub(crate) fn map<U: WithHtmlDomNode>(self, f: impl FnOnce(T) -> U) -> VListElem<U> {
         VListElem {
             elem: f(self.elem),
