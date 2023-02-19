@@ -3,8 +3,10 @@ use std::borrow::Cow;
 use crate::{
     mathml_tree::{MathDomNode, MathmlNode, WithMathDomNode},
     parse_node::Color,
+    svg_geometry,
     tree::{class_attr, Attributes, ClassList, EmptyNode, VirtualNode},
-    util, Options,
+    util::{self, find_assoc_data},
+    Options,
 };
 
 // TODO: We could have so fields that are numbers have to be actual numbers?
@@ -193,6 +195,7 @@ pub enum HtmlNode {
     Anchor(Anchor<HtmlNode>),
     Img(Img),
     Symbol(SymbolNode),
+    Svg(SvgNode),
 }
 impl VirtualNode for HtmlNode {
     fn to_markup(&self) -> String {
@@ -203,6 +206,7 @@ impl VirtualNode for HtmlNode {
             HtmlNode::Anchor(node) => node.to_markup(),
             HtmlNode::Img(node) => node.to_markup(),
             HtmlNode::Symbol(node) => node.to_markup(),
+            HtmlNode::Svg(node) => node.to_markup(),
         }
     }
 }
@@ -215,6 +219,7 @@ impl WithHtmlDomNode for HtmlNode {
             HtmlNode::Anchor(node) => node.node(),
             HtmlNode::Img(node) => node.node(),
             HtmlNode::Symbol(node) => node.node(),
+            HtmlNode::Svg(node) => node.node(),
         }
     }
 
@@ -226,6 +231,7 @@ impl WithHtmlDomNode for HtmlNode {
             HtmlNode::Anchor(node) => node.node_mut(),
             HtmlNode::Img(node) => node.node_mut(),
             HtmlNode::Symbol(node) => node.node_mut(),
+            HtmlNode::Svg(node) => node.node_mut(),
         }
     }
 }
@@ -265,6 +271,11 @@ impl From<Img> for HtmlNode {
 impl From<SymbolNode> for HtmlNode {
     fn from(node: SymbolNode) -> Self {
         HtmlNode::Symbol(node)
+    }
+}
+impl From<SvgNode> for HtmlNode {
+    fn from(node: SvgNode) -> Self {
+        HtmlNode::Svg(node)
     }
 }
 
@@ -659,28 +670,101 @@ impl VirtualNode for SymbolNode {
     }
 }
 
-// FIXME: Implement this.
-// pub struct SvgNode {
-//     pub children: Vec<SvgChildNode>,
-//     pub attributes: HashMap<String, String>,
-// }
+/// SVG nodes are used to render stretchy wide elements.
+#[derive(Debug, Clone)]
+pub struct SvgNode {
+    pub node: HtmlDomNode,
+    pub children: Vec<SvgChildNode>,
+    pub attributes: Attributes,
+}
+impl SvgNode {
+    pub fn new(children: Vec<SvgChildNode>) -> SvgNode {
+        SvgNode {
+            // Note: this ignores classes and styles
+            node: HtmlDomNode::new(ClassList::new(), None, CssStyle::default()),
+            children,
+            attributes: Attributes::new(),
+        }
+    }
+
+    pub fn with_attribute(mut self, key: impl Into<String>, val: impl Into<String>) -> SvgNode {
+        self.attributes.insert(key.into(), val.into());
+        self
+    }
+
+    // TODO: to_node
+}
+impl VirtualNode for SvgNode {
+    fn to_markup(&self) -> String {
+        let mut markup = "<svg xmlns=\"http://www.w3.org/2000/svg\"".to_string();
+
+        // Apply attributes
+        for (key, val) in self.attributes.iter() {
+            markup.push(' ');
+            markup.push_str(key);
+            markup.push_str("=\'");
+            markup.push_str(val);
+            markup.push('\'');
+        }
+
+        markup.push('>');
+
+        for child in &self.children {
+            markup.push_str(&child.to_markup());
+        }
+
+        markup.push_str("</svg>");
+
+        markup
+    }
+}
+impl WithHtmlDomNode for SvgNode {
+    fn node(&self) -> &HtmlDomNode {
+        &self.node
+    }
+
+    fn node_mut(&mut self) -> &mut HtmlDomNode {
+        &mut self.node
+    }
+}
 
 #[derive(Debug, Clone)]
-pub struct PathNode {
-    pub path_name: String,
-    pub alternate: Option<String>,
+pub enum SvgChildNode {
+    Path(PathNode),
+    Line(LineNode),
 }
-impl PathNode {
-    pub fn new(path_name: String, alternate: Option<String>) -> PathNode {
-        PathNode {
-            path_name,
-            alternate,
+impl SvgChildNode {
+    pub fn to_markup(&self) -> String {
+        match self {
+            SvgChildNode::Path(path) => path.to_markup(),
+            SvgChildNode::Line(line) => line.to_markup(),
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PathNode {
+    pub path_name: Cow<'static, str>,
+    pub alternate: Option<String>,
+}
+impl PathNode {
+    pub fn new(path_name: impl Into<Cow<'static, str>>, alternate: Option<String>) -> PathNode {
+        PathNode {
+            path_name: path_name.into(),
+            alternate,
+        }
+    }
+
+    // TODO: to_node
+}
 impl VirtualNode for PathNode {
     fn to_markup(&self) -> String {
-        todo!()
+        if let Some(alternate) = self.alternate.as_deref() {
+            format!("<path d='{}'/>", alternate)
+        } else {
+            let path = find_assoc_data(svg_geometry::PATH, &self.path_name).unwrap();
+            format!("<path d='{}'/>", path)
+        }
     }
 }
 
@@ -695,6 +779,19 @@ impl LineNode {
 }
 impl VirtualNode for LineNode {
     fn to_markup(&self) -> String {
-        todo!()
+        let mut markup = "<line".to_string();
+
+        // Apply attributes
+        for (key, val) in self.attributes.iter() {
+            markup.push(' ');
+            markup.push_str(key);
+            markup.push_str("=\'");
+            markup.push_str(val);
+            markup.push('\'');
+        }
+
+        markup.push_str("/>");
+
+        markup
     }
 }

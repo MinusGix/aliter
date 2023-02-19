@@ -38,6 +38,7 @@ pub mod parser;
 mod spacing_data;
 mod spec;
 pub mod style;
+mod svg_geometry;
 pub mod symbols;
 pub mod tree;
 pub mod unicode;

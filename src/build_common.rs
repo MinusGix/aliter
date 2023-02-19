@@ -15,6 +15,9 @@ use crate::{
     FontShape, FontWeight, Options,
 };
 
+#[cfg(feature = "html")]
+use crate::dom_tree::SvgNode;
+
 pub(crate) struct LookupSymbol {
     pub value: String,
     pub metrics: Option<CharacterMetrics>,
@@ -863,3 +866,45 @@ pub(crate) const FONT_MAP: &'static [(&'static str, FontData)] = &[
         },
     ),
 ];
+
+#[cfg(feature = "html")]
+/// path, width, height
+const SVG_DATA: &'static [(&'static str, (&'static str, f64, f64))] = &[
+    ("vec", ("vec", 0.471, 0.714)),
+    ("oiintSize1", ("oiintSize1", 0.957, 0.499)),
+    ("oiintSize2", ("oiintSize2", 1.472, 0.659)),
+    ("oiiintSize1", ("oiiintSize1", 1.304, 0.499)),
+    ("oiiintSize2", ("oiiintSize2", 1.98, 0.659)),
+];
+
+#[cfg(feature = "html")]
+pub(crate) fn static_svg(value: &str, options: &Options) -> Span<SvgNode> {
+    // Create a span with inline SVG for the element.
+
+    use crate::dom_tree::{PathNode, SvgChildNode};
+    let (path_name, width, height) = find_assoc_data(SVG_DATA, value).unwrap();
+    let width_s = make_em(*width);
+    let height_s = make_em(*height);
+    let path = PathNode::new(*path_name, None);
+    let svg_node = SvgNode::new(vec![SvgChildNode::Path(path)])
+        .with_attribute("width", width_s.clone())
+        .with_attribute("height", height_s.clone())
+        // Override CSS rule `.katex svg { width: 100% }`
+        .with_attribute("style", format!("width:{}", width_s))
+        .with_attribute(
+            "viewBox",
+            format!("0 0 {} {}", width * 1000.0, height * 1000.0),
+        )
+        .with_attribute("preserveAspectRatio", "xMinYMin");
+    let mut span = Span::new(
+        vec!["overlay".to_string()],
+        vec![svg_node],
+        Some(options),
+        CssStyle::default(),
+    );
+    span.node.height = *height;
+    span.node.style.height = Some(Cow::Owned(height_s));
+    span.node.style.width = Some(Cow::Owned(width_s));
+
+    span
+}
