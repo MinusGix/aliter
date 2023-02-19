@@ -1,4 +1,5 @@
 use crate::{
+    dom_tree::DocumentFragment,
     tree::{class_attr, Attributes, ClassList, VirtualNode},
     unit::{make_em, Em},
     util,
@@ -136,6 +137,7 @@ pub enum MathmlNode {
     Math(MathNode<MathmlNode>),
     Text(TextNode),
     Space(SpaceNode),
+    DocumentFragment(DocumentFragment<MathmlNode>),
 }
 impl VirtualNode for MathmlNode {
     fn to_markup(&self) -> String {
@@ -144,6 +146,7 @@ impl VirtualNode for MathmlNode {
             MathmlNode::Math(node) => node.to_markup(),
             MathmlNode::Text(node) => node.to_markup(),
             MathmlNode::Space(node) => node.to_markup(),
+            MathmlNode::DocumentFragment(node) => node.to_markup(),
         }
     }
 }
@@ -154,6 +157,7 @@ impl WithMathDomNode for MathmlNode {
             MathmlNode::Math(node) => node.node(),
             MathmlNode::Text(node) => node.node(),
             MathmlNode::Space(node) => node.node(),
+            MathmlNode::DocumentFragment(node) => node.node(),
         }
     }
 
@@ -163,6 +167,7 @@ impl WithMathDomNode for MathmlNode {
             MathmlNode::Math(node) => node.node_mut(),
             MathmlNode::Text(node) => node.node_mut(),
             MathmlNode::Space(node) => node.node_mut(),
+            MathmlNode::DocumentFragment(node) => node.node_mut(),
         }
     }
 }
@@ -188,6 +193,15 @@ impl From<TextNode> for MathmlNode {
 impl From<SpaceNode> for MathmlNode {
     fn from(node: SpaceNode) -> MathmlNode {
         MathmlNode::Space(node)
+    }
+}
+impl<T: WithMathDomNode> From<DocumentFragment<T>> for MathmlNode
+where
+    MathmlNode: From<T>,
+{
+    fn from(node: DocumentFragment<T>) -> MathmlNode {
+        let node = node.using_mathml_node();
+        MathmlNode::DocumentFragment(node)
     }
 }
 

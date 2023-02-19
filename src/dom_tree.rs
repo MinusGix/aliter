@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
+    mathml_tree::{MathDomNode, MathmlNode, WithMathDomNode},
     parse_node::Color,
     tree::{class_attr, Attributes, ClassList, EmptyNode, VirtualNode},
     util, Options,
@@ -209,7 +210,7 @@ impl WithHtmlDomNode for HtmlNode {
     fn node(&self) -> &HtmlDomNode {
         match self {
             HtmlNode::Empty(node) => node.node(),
-            HtmlNode::DocumentFragment(node) => node.node(),
+            HtmlNode::DocumentFragment(node) => WithHtmlDomNode::node(node),
             HtmlNode::Span(node) => node.node(),
             HtmlNode::Anchor(node) => node.node(),
             HtmlNode::Img(node) => node.node(),
@@ -220,7 +221,7 @@ impl WithHtmlDomNode for HtmlNode {
     fn node_mut(&mut self) -> &mut HtmlDomNode {
         match self {
             HtmlNode::Empty(node) => node.node_mut(),
-            HtmlNode::DocumentFragment(node) => node.node_mut(),
+            HtmlNode::DocumentFragment(node) => WithHtmlDomNode::node_mut(node),
             HtmlNode::Span(node) => node.node_mut(),
             HtmlNode::Anchor(node) => node.node_mut(),
             HtmlNode::Img(node) => node.node_mut(),
@@ -297,23 +298,31 @@ impl WithHtmlDomNode for HtmlDomNode {
 // TODO: implements htmldomnode, mathdomnode..
 #[derive(Debug, Clone)]
 pub struct DocumentFragment<T: VirtualNode> {
+    #[cfg(feature = "html")]
     pub node: HtmlDomNode,
+    #[cfg(feature = "mathml")]
+    pub math_node: MathDomNode,
     pub children: Vec<T>,
 }
 impl<T: VirtualNode> DocumentFragment<T> {
     pub fn new(children: Vec<T>) -> DocumentFragment<T> {
         DocumentFragment {
+            #[cfg(feature = "html")]
             node: HtmlDomNode::default(),
+            #[cfg(feature = "mathml")]
+            math_node: MathDomNode {},
             children,
         }
     }
 
+    #[cfg(feature = "html")]
     pub fn has_class(&self, class: &str) -> bool {
         self.node.has_class(class)
     }
 
     // TODO: math node to text?
 }
+#[cfg(feature = "html")]
 impl<T: VirtualNode> DocumentFragment<T>
 where
     HtmlNode: From<T>,
@@ -321,7 +330,22 @@ where
     pub fn using_html_node(self) -> DocumentFragment<HtmlNode> {
         DocumentFragment {
             node: self.node,
+            #[cfg(feature = "mathml")]
+            math_node: self.math_node,
             children: self.children.into_iter().map(HtmlNode::from).collect(),
+        }
+    }
+}
+#[cfg(feature = "mathml")]
+impl<T: VirtualNode> DocumentFragment<T>
+where
+    MathmlNode: From<T>,
+{
+    pub fn using_mathml_node(self) -> DocumentFragment<MathmlNode> {
+        DocumentFragment {
+            node: self.node,
+            math_node: self.math_node,
+            children: self.children.into_iter().map(MathmlNode::from).collect(),
         }
     }
 }
@@ -330,6 +354,7 @@ impl<T: VirtualNode> VirtualNode for DocumentFragment<T> {
         self.children.iter().map(|c| c.to_markup()).collect()
     }
 }
+#[cfg(feature = "html")]
 impl<T: VirtualNode> WithHtmlDomNode for DocumentFragment<T> {
     fn node(&self) -> &HtmlDomNode {
         &self.node
@@ -337,6 +362,16 @@ impl<T: VirtualNode> WithHtmlDomNode for DocumentFragment<T> {
 
     fn node_mut(&mut self) -> &mut HtmlDomNode {
         &mut self.node
+    }
+}
+#[cfg(feature = "mathml")]
+impl<T: VirtualNode> WithMathDomNode for DocumentFragment<T> {
+    fn node(&self) -> &MathDomNode {
+        &self.math_node
+    }
+
+    fn node_mut(&mut self) -> &mut MathDomNode {
+        &mut self.math_node
     }
 }
 
