@@ -528,16 +528,16 @@ mod tests {
         // should produce a single sizing object
         let parse = parse_tree(r"\Large abc", ParserConfig::default()).unwrap();
         assert_eq!(parse.len(), 1);
-        let ParseNode::Styling(styling) = &parse[0] else {
-            panic!("Expected Styling node, got {:?}", parse[0]);
+        let ParseNode::Sizing(styling) = &parse[0] else {
+            panic!("Expected Sizing node, got {:?}", parse[0]);
         };
         assert!(!styling.body.is_empty());
 
         // should apply only after the function
         let parse = parse_tree(r"a \Large abc", ParserConfig::default()).unwrap();
         assert_eq!(parse.len(), 2);
-        let ParseNode::Styling(styling) = &parse[1] else {
-            panic!("Expected Styling node, got {:?}", parse[1]);
+        let ParseNode::Sizing(styling) = &parse[1] else {
+            panic!("Expected Sizing node, got {:?}", parse[1]);
         };
         assert_eq!(styling.body.len(), 3);
 
@@ -546,10 +546,11 @@ mod tests {
         let ParseNode::OrdGroup(group) = &parse[1] else {
             panic!("Expected inner group, got {:?}", parse[1]);
         };
-        let ParseNode::Styling(styling) = &group.body[1] else {
-            panic!("Expected Styling node, got {:?}", group.body[1]);
+        let sizing = match &group.body[1] {
+            ParseNode::Sizing(s) => s,
+            other => panic!("Expected Sizing node, got {:?}", other),
         };
-        assert_eq!(styling.body.len(), 1);
+        assert_eq!(sizing.body.len(), 1);
 
         // optional-group variants: just ensure they parse
         to_parse(r"\sqrt[\small 3]{x}", ParserConfig::default());
@@ -1020,10 +1021,10 @@ mod tests {
             let display_body = &styling.body;
             assert_eq!(display_body.len(), 2); // e, f
             // check text "e"
-            let ParseNode::TextOrd(ord) = &display_body[0] else {
-                 panic!("Expected TextOrd, got {:?}", display_body[0]);
-            };
-            assert_eq!(ord.text, "e");
+            let text = display_body[0]
+                .text()
+                .unwrap_or_else(|| panic!("Expected text node, got {:?}", display_body[0]));
+            assert_eq!(text, "e");
         }
     }
 

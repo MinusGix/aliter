@@ -30,6 +30,7 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
     let mut macros = Macros::default();
 
     // macro tools
+    macros.insert_back_macro("\\relax", text(""));
 
     macros.insert_back_macro(
         "\\noexpand",
@@ -701,9 +702,26 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
             if exp.macros.get_back_macro("\\df@tag").is_some() {
                 return Err(ParseError::MultipleTag);
             }
-            Ok(MacroVal::Text(Cow::Borrowed("\\gdef\\df@tag{\\text{#1}}")))
+            let args = exp.consume_args_n::<1>()?;
+            let arg: String = args[0].iter().map(|t| t.content.as_ref()).collect();
+            exp.macros.set_global_back_macro(
+                "\\df@tag".to_string(),
+                Some(Arc::new(MacroReplace::Text(format!("\\text{{{arg}}}")))),
+            );
+            Ok(MacroVal::empty_text())
         }),
     );
+    macros.insert_back_macro(
+        "\\nonumber",
+        f(|exp| {
+            exp.macros.set_global_back_macro(
+                "\\@eqnsw".to_string(),
+                Some(Arc::new(MacroReplace::Text("0".to_string()))),
+            );
+            Ok(MacroVal::empty_text())
+        }),
+    );
+    macros.insert_back_macro("\\notag", text("\\nonumber"));
 
     // \renewcommand{\bmod}{\nonscript\mskip-\medmuskip\mkern5mu\mathbin
     //   {\operator@font mod}\penalty900

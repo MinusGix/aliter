@@ -6,6 +6,7 @@ use crate::{
     expander::{BreakToken, Mode},
     functions::FunctionPropSpec,
     macr::MacroReplace,
+    lexer::Token,
     parse_node::{
         ArrayNode, ArrayTag, LeftRightNode, NodeInfo, OrdGroupNode, ParseNode, StylingNode,
     },
@@ -50,6 +51,7 @@ struct ArrayOpts {
     leq_no: Option<bool>,
     is_cd: Option<bool>,
     tags: Option<Vec<ArrayTag>>,
+    auto_tag: Option<bool>,
 }
 
 fn wrap_cell(body: Vec<ParseNode>, style: Style, mode: Mode) -> ParseNode {
@@ -90,10 +92,47 @@ fn array_from_opts(
         array_stretch = 1.0;
     }
 
+    let auto_tag = opts.auto_tag;
+    let mut tags = opts.tags.or_else(|| auto_tag.map(|_| Vec::new()));
+    let mut begin_row = |parser: &mut Parser| {
+        if let Some(true) = auto_tag {
+            parser.gullet.macros.set_back_macro(
+                "\\@eqnsw",
+                Some(Arc::new(MacroReplace::Text("1".to_string()))),
+            );
+        }
+    };
+    let mut end_row =
+        |parser: &mut Parser, tags: &mut Option<Vec<ArrayTag>>| -> Result<(), ParseError> {
+            if let Some(tags_vec) = tags.as_mut() {
+                if parser.gullet.macros.contains_back_macro("\\df@tag") {
+                    let tag = parser.sub_parse(std::iter::once(Token::new_text("\\df@tag")))?;
+                    tags_vec.push(ArrayTag::Tag(tag));
+                    parser
+                        .gullet
+                        .macros
+                        .set_global_back_macro("\\df@tag".to_string(), None);
+                } else if let Some(auto) = auto_tag {
+                    let eqnsw = parser
+                        .gullet
+                        .macros
+                        .get_back_macro("\\@eqnsw")
+                        .and_then(|m| match m.as_ref() {
+                            MacroReplace::Text(t) => Some(t == "1"),
+                            _ => None,
+                        })
+                        .unwrap_or(false);
+                    tags_vec.push(ArrayTag::Boolean(auto && eqnsw));
+                }
+            }
+            Ok(())
+        };
+
     let mut body: Vec<Vec<ParseNode>> = vec![Vec::new()];
     let mut row_gaps = Vec::new();
     let mut h_lines_before_row = Vec::new();
 
+    begin_row(parser);
     h_lines_before_row.push(get_hlines(parser)?);
 
     loop {
@@ -130,6 +169,7 @@ fn array_from_opts(
             if h_lines_before_row.len() < body_len + 1 {
                 h_lines_before_row.push(Vec::new());
             }
+            end_row(parser, &mut tags)?;
             if row_empty_single {
                 body.pop();
             }
@@ -142,8 +182,10 @@ fn array_from_opts(
                 None
             };
             row_gaps.push(size.map(|s| s.value));
+            end_row(parser, &mut tags)?;
             h_lines_before_row.push(get_hlines(parser)?);
             body.push(Vec::new());
+            begin_row(parser);
         } else {
             eprintln!("array_from_opts: unexpected token {}", next);
             return Err(ParseError::Expected);
@@ -162,7 +204,7 @@ fn array_from_opts(
         array_stretch,
         row_gaps,
         h_lines_before_row,
-        tags: opts.tags,
+        tags,
         leq_no: opts.leq_no,
         is_cd: opts.is_cd,
         info: NodeInfo::new_mode(parser.mode()),
@@ -170,15 +212,19 @@ fn array_from_opts(
 }
 
 fn arg_to_chars(arg: &ParseNode) -> Result<Vec<char>, ParseError> {
+    let normalize = |ch: char| match ch {
+        '\u{2223}' | '\u{2225}' => '|',
+        _ => ch,
+    };
     if let Some(text) = arg.text() {
-        return Ok(text.chars().collect());
+        return Ok(text.chars().map(normalize).collect());
     }
 
     if let ParseNode::OrdGroup(ord) = arg {
         let mut out = Vec::new();
         for node in &ord.body {
             if let Some(text) = node.text() {
-                out.extend(text.chars());
+                out.extend(text.chars().map(normalize));
             } else {
                 return Err(ParseError::Expected);
             }
@@ -249,6 +295,13 @@ fn aligned_handler(
     opts.empty_single_row = true;
     opts.max_num_cols = if ctx.env_name == "split" { Some(2) } else { None };
     opts.leq_no = Some(ctx.parser.conf.leq_no);
+    opts.auto_tag = if ctx.env_name == "split" {
+        None
+    } else if ctx.env_name.contains("ed") {
+        None
+    } else {
+        Some(!ctx.env_name.contains('*'))
+    };
 
     let mut res = array_from_opts(ctx.parser, opts, Style::Display)?;
 
@@ -486,6 +539,11 @@ fn gathered_handler(
             col_separation_type: Some(ColSeparationType::Gather),
             empty_single_row: true,
             leq_no: Some(ctx.parser.conf.leq_no),
+            auto_tag: if ctx.env_name.contains("ed") {
+                None
+            } else {
+                Some(!ctx.env_name.contains('*'))
+            },
             ..Default::default()
         },
         Style::Display,
@@ -506,6 +564,7 @@ fn equation_handler(
             single_row: true,
             max_num_cols: Some(1),
             leq_no: Some(ctx.parser.conf.leq_no),
+            auto_tag: Some(!ctx.env_name.contains('*')),
             ..Default::default()
         },
         Style::Display,
@@ -546,7 +605,15 @@ fn cd_placeholder_arrow(
     wrap_cell(body, Style::Display, mode)
 }
 
+fn normalize_arrow_char(c: char) -> char {
+    match c {
+        '\u{2223}' => '|', // Vertical bar parsed as U+2223 in the symbol table
+        _ => c,
+    }
+}
+
 fn parse_cd(parser: &mut Parser) -> Result<ArrayNode, ParseError> {
+    let dbg_enabled = false;
     let mut parsed_rows: Vec<Vec<ParseNode>> = Vec::new();
     parser.gullet.begin_group();
     parser
@@ -568,6 +635,9 @@ fn parse_cd(parser: &mut Parser) -> Result<ArrayNode, ParseError> {
             }
             break;
         } else {
+            if dbg_enabled {
+                eprintln!("cd parse: expected & or \\\\, got {}", next);
+            }
             return Err(ParseError::Expected);
         }
     }
@@ -589,9 +659,12 @@ fn parse_cd(parser: &mut Parser) -> Result<ArrayNode, ParseError> {
             row.push(cell);
             j += 1;
             if j >= row_nodes.len() {
+                if dbg_enabled {
+                    eprintln!("cd parse: arrow at end of row");
+                }
                 return Err(ParseError::Expected);
             }
-            let arrow_char = cd_arrow_char(&row_nodes[j])?;
+            let arrow_char = normalize_arrow_char(cd_arrow_char(&row_nodes[j])?);
             let mut labels = [
                 OrdGroupNode {
                     body: Vec::new(),
@@ -617,15 +690,24 @@ fn parse_cd(parser: &mut Parser) -> Result<ArrayNode, ParseError> {
                             break;
                         }
                         if is_start_of_arrow(&row_nodes[j]) {
+                            if dbg_enabled {
+                                eprintln!("cd parse: nested arrow found parsing labels");
+                            }
                             return Err(ParseError::Expected);
                         }
                         labels[label_idx].body.push(row_nodes[j].clone());
                     }
                     if !found {
+                        if dbg_enabled {
+                            eprintln!("cd parse: missing closing {}", arrow_char);
+                        }
                         return Err(ParseError::Expected);
                     }
                 }
             } else {
+                if dbg_enabled {
+                    eprintln!("cd parse: unknown arrow char {}", arrow_char);
+                }
                 return Err(ParseError::Expected);
             }
 

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    parse_node::{CrNode, NodeInfo, ParseNode, ParseNodeType},
+    expander::Mode,
+    parse_node::{CrNode, NodeInfo, ParseNode, ParseNodeType, SpacingNode},
     util::ArgType,
 };
 
@@ -29,6 +30,12 @@ fn cr_handler(
     _args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
 ) -> ParseNode {
+    if ctx.parser.mode() == Mode::Text {
+        return ParseNode::Spacing(SpacingNode {
+            text: "\u{a0}".to_string(),
+            info: NodeInfo::new_mode(Mode::Text),
+        });
+    }
     let size = opt_args[0].as_ref().map(|arg| {
         if let ParseNode::Size(size) = arg {
             size.value.clone()

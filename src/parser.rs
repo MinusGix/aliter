@@ -10,9 +10,9 @@ use crate::{
     lexer::{CategoryCode, Token},
     macr::{MacroReplace, Macros},
     parse_node::{
-        AccentNode, AtomNode, Color, ColorNode, ColorTokenNode, NodeInfo, OrdGroupNode, ParseNode,
-        ParseNodeType, RawNode, SizeNode, StylingNode, SupSubNode, TextNode, TextOrdNode,
-        UnsupportedCmdParseNode, UrlNode, VerbNode,
+        AccentNode, AtomNode, Color, ColorNode, ColorTokenNode, InternalNode, NodeInfo,
+        OrdGroupNode, ParseNode, ParseNodeType, RawNode, SizeNode, StylingNode, SupSubNode,
+        TextNode, TextOrdNode, UnsupportedCmdParseNode, UrlNode, VerbNode,
     },
     symbols::{self, Group},
     unicode,
@@ -1208,6 +1208,13 @@ impl<'a, 'f> Parser<'a, 'f> {
     ) -> Result<Option<ParseNode>, ParseError> {
         let first_token = self.fetch()?.clone();
 
+        if first_token.content == "\\relax" {
+            self.consume();
+            return Ok(Some(ParseNode::Internal(InternalNode {
+                info: NodeInfo::new_mode(self.mode()),
+            })));
+        }
+
         let is_left_curly = first_token.content == "{";
         let is_begin_group = first_token.content == "\\begingroup";
         if is_left_curly || is_begin_group {
@@ -1467,6 +1474,15 @@ impl<'a, 'f> Parser<'a, 'f> {
                 text: text.into_owned().into(),
                 info: NodeInfo {
                     mode: Mode::Text,
+                    loc: SourceLocation::combine(nucleus_loc.clone(), None),
+                },
+            })
+        } else if text == "@" {
+            // Used in CD environment arrow syntax; treat as ordinary text symbol.
+            ParseNode::TextOrd(TextOrdNode {
+                text: "@".into(),
+                info: NodeInfo {
+                    mode: self.mode(),
                     loc: SourceLocation::combine(nucleus_loc.clone(), None),
                 },
             })

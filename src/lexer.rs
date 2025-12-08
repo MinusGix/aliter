@@ -62,18 +62,19 @@ impl<'a> Lexer<'a> {
         let initial_pos = self.pos;
         let input = &self.input[self.pos..];
         let text = if let Some(capture) = TOKEN_REGEX.captures(input) {
+            let whole_match_end = capture.get(0).unwrap().end();
             let (text, end) = if let Some(mac) = capture.get(4) {
-                // backslash macro
-                (mac.as_str(), mac.end())
+                // backslash macro (trailing whitespace is part of the full match)
+                (mac.as_str(), whole_match_end)
             } else if let Some(mac) = capture.get(3) {
                 // other things
-                (mac.as_str(), mac.end())
+                (mac.as_str(), whole_match_end)
             } else if let Some(mac) = capture.get(2) {
                 // TODO: is this correct?
-                ("\\ ", mac.end())
+                ("\\ ", whole_match_end)
             } else {
                 // TODO: is this correct?
-                (" ", ' '.len_utf8())
+                (" ", whole_match_end)
             };
 
             self.pos += end;

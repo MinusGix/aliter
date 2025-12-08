@@ -489,12 +489,15 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         loop {
             let expanded = self.expand_once(false)?;
             match expanded {
-                TokenList::Single(mut token) => {
+                TokenList::Single(_) => {
+                    let mut token = self.stack.pop().unwrap();
                     if token.treat_as_relax {
                         token.content = Cow::Borrowed("\\relax");
+                        token.no_expand = false;
+                        token.treat_as_relax = false;
                     }
 
-                    return Ok(self.stack.pop().unwrap());
+                    return Ok(token);
                 }
                 TokenList::List(_) => {}
             }
