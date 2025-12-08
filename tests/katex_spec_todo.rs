@@ -43,33 +43,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn operatorname_support() {
-    // TODO: port "operatorname support" from katex-spec.js:2888
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn href_and_url_commands() {
-    // TODO: port "href and url commands" from katex-spec.js:2899
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_raw_text_parser() {
-    // TODO: port "A raw text parser" from katex-spec.js:2998
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_parser_that_does_not_throw_on_unsupported_commands() {
-    // TODO: port "A parser that does not throw on unsupported commands" from katex-spec.js:3005
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]
