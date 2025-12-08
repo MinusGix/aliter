@@ -669,23 +669,23 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
         "\\tmspace",
         text("\\TextOrMath{\\kern#1#3}{\\mskip#1#2}\\relax"),
     );
-    // Math spacing shortcuts
-    macros.insert_back_macro("\\,", text("\\mskip{3mu}"));
+    // Math/text spacing (explicit TextOrMath to mirror KaTeX behavior)
+    macros.insert_back_macro("\\,", text("\\TextOrMath{\\kern.1667em}{\\mskip3mu}"));
     // \let\thinspace\,
     macros.insert_back_macro("\\thinspace", text("\\,"));
     // \def\>{\mskip\medmuskip}
     macros.insert_back_macro("\\>", text("\\mskip{4mu}"));
-    macros.insert_back_macro("\\:", text("\\mskip{4mu}"));
+    macros.insert_back_macro("\\:", text("\\TextOrMath{\\kern.2222em}{\\mskip4mu}"));
     // \let\medspace\:
     macros.insert_back_macro("\\medspace", text("\\:"));
-    macros.insert_back_macro("\\;", text("\\mskip{5mu}"));
+    macros.insert_back_macro("\\;", text("\\TextOrMath{\\kern.2777em}{\\mskip5mu}"));
     // \let\thickspace\;
     macros.insert_back_macro("\\thickspace", text("\\;"));
-    macros.insert_back_macro("\\!", text("\\mskip{-3mu}"));
+    macros.insert_back_macro("\\!", text("\\TextOrMath{\\kern-.1667em}{\\mskip-3mu}"));
     // \let\negthinspace\!
     macros.insert_back_macro("\\negthinspace", text("\\!"));
-    macros.insert_back_macro("\\negmedspace", text("\\mskip{-4mu}"));
-    macros.insert_back_macro("\\negthickspace", text("\\mskip{-5mu}"));
+    macros.insert_back_macro("\\negmedspace", text("\\TextOrMath{\\kern-.2222em}{\\mskip-4mu}"));
+    macros.insert_back_macro("\\negthickspace", text("\\TextOrMath{\\kern-.2777em}{\\mskip-5mu}"));
     // \def\enspace{\kern.5em }
     macros.insert_back_macro("\\enspace", text("\\kern.5em "));
     // \def\enskip{\hskip.5em\relax}
