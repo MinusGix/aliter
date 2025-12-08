@@ -485,4 +485,63 @@ mod tests {
             assert!(!ord.body.is_empty());
         }
     }
+
+    #[test]
+    fn a_supsub_left_right_nucleus_parser() {
+        // should parse juxtaposition in superscripts/subscripts with left/right delimiters
+        to_parse(r"x^\left(3\right)4", ParserConfig::default());
+        to_parse(r"x_\left(3\right)4", ParserConfig::default());
+        to_parse(r"x_\left(3^\left(4\right)\right)5", ParserConfig::default());
+    }
+
+    #[test]
+    fn an_over_under_parser() {
+        // should parse \overline and \underline
+        to_parse(r"\overline{x}", ParserConfig::default());
+        to_parse(r"\underline{x}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_phantom_parser() {
+        // should parse \phantom, \hphantom, \vphantom
+        to_parse(r"\phantom{x}", ParserConfig::default());
+        to_parse(r"\hphantom{x}", ParserConfig::default());
+        to_parse(r"\vphantom{x}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_color_parser() {
+        let mut conf = ParserConfig::default();
+        conf.color_is_text_color = false;
+
+        // should parse \color with implicit body
+        to_parse(r"\color{blue} x + y", conf.clone());
+        to_parse(r"\textcolor{#fff}{x}", conf);
+    }
+
+    #[test]
+    fn a_kern_parser() {
+        // should parse explicit kerns
+        to_parse(r"x\kern1em y", ParserConfig::default());
+        to_parse(r"x\mkern1mu y", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_rule_parser() {
+        // should parse \rule with width/height
+        to_parse(r"\rule{1em}{2em}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_text_mode_switch_parser() {
+        // should parse \text / \textrm and consume the argument group
+        to_parse(r"\text{abc}", ParserConfig::default());
+        to_parse(r"\textrm{abc}", ParserConfig::default());
+    }
+
+    #[test]
+    fn an_overbrace_underbrace_parser() {
+        to_parse(r"\overbrace{abc}^{note}", ParserConfig::default());
+        to_parse(r"\underbrace{abc}_{note}", ParserConfig::default());
+    }
 }

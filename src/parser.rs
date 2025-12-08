@@ -21,8 +21,10 @@ use crate::{
     },
 };
 
-static COLOR_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new("^(?i[a-f0-9]{3}|#?[a-f0-9]{6}|[a-z]+)$").unwrap());
+// (?i) must be at the start for Rust's regex engine
+static COLOR_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new("(?i)^(?:#?(?:[a-f0-9]{3}|[a-f0-9]{6})|[a-z]+)$").unwrap()
+});
 
 // static SIX_HEX_COLOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^(?i)[0-9a-f]{6}").unwrap());
 
