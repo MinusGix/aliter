@@ -400,6 +400,20 @@ impl<'a, 'f> Parser<'a, 'f> {
             }
         }
 
+        if body.len() > 1 {
+            let mut flattened = Vec::new();
+            for node in body {
+                if let ParseNode::OrdGroup(ord) = &node {
+                    if ord.semi_simple == Some(true) {
+                        flattened.extend(ord.body.clone());
+                        continue;
+                    }
+                }
+                flattened.push(node);
+            }
+            body = flattened;
+        }
+
         if self.mode() == Mode::Text {
             self.form_ligatures(&mut body);
         }

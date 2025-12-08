@@ -108,7 +108,8 @@ pub fn add_functions(fns: &mut Functions) {
     // \right
     let right = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::LeftRightRight, 1)
-            .with_primitive(true),
+            .with_primitive(true)
+            .with_allowed_in_argument(true),
         handler: Box::new(|ctx, args, _| {
             let delim = check_delimiter(&args[0]).unwrap();
             ParseNode::LeftRightRight(LeftRightRightNode {
@@ -127,7 +128,8 @@ pub fn add_functions(fns: &mut Functions) {
     // \left
     let left = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::LeftRight, 1)
-            .with_primitive(true),
+            .with_primitive(true)
+            .with_allowed_in_argument(true),
         handler: Box::new(|ctx, args, _| {
             let left_delim = check_delimiter(&args[0]).unwrap();
 
