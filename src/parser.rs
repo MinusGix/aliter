@@ -961,6 +961,17 @@ impl<'a, 'f> Parser<'a, 'f> {
             return Ok(None);
         };
 
+        // If we only captured a leading sign (e.g. from `\tmspace+{3mu}`),
+        // pull the following string group and concatenate so we end up with
+        // a usable size like `+3mu`.
+        if res.content == "+" || res.content == "-" {
+            if let Some(next) = self.parse_string_group(optional)? {
+                let loc = SourceLocation::combine(res.loc.clone(), next.loc.clone());
+                let content = format!("{}{}", res.content, next.content);
+                res = Token::new_owned(content, loc);
+            }
+        }
+
         if !optional && res.content.is_empty() {
             // Since we have tested for what is non-optional, this won't affect \kern,
             // \hspace, etc. It will capture the mandatory arguments to \genfrac and \above
@@ -971,8 +982,25 @@ impl<'a, 'f> Parser<'a, 'f> {
             is_blank = true;
         }
 
+        // TeX allows the magnitude to be wrapped in braces (e.g. `+{3mu}`).
+        // Strip an optional brace pair after any leading sign so the regex
+        // below can match the core number+unit.
+        let mut content = res.content.trim().to_string();
+        if let Some(sign) = content.chars().next().filter(|c| *c == '+' || *c == '-') {
+            let rest = content[sign.len_utf8()..].trim_start();
+            if rest.starts_with('{') && rest.ends_with('}') && rest.len() >= 2 {
+                content = format!(
+                    "{}{}",
+                    sign,
+                    rest[1..rest.len() - 1].trim()
+                );
+            }
+        } else if content.starts_with('{') && content.ends_with('}') && content.len() >= 2 {
+            content = content[1..content.len() - 1].trim().to_string();
+        }
+
         let captures = SIZE_REGEX
-            .captures(&res.content)
+            .captures(&content)
             .ok_or(ParseError::InvalidSize)?;
 
         let sign = captures.get(1);

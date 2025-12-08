@@ -669,34 +669,23 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
         "\\tmspace",
         text("\\TextOrMath{\\kern#1#3}{\\mskip#1#2}\\relax"),
     );
-    // \renewcommand{\,}{\tmspace+\thinmuskip{.1667em}}
-    // TODO: math mode should use \thinmuskip
-    macros.insert_back_macro("\\,", text("\\tmspace+{3mu}{.1667em}"));
+    // Math spacing shortcuts
+    macros.insert_back_macro("\\,", text("\\mskip{3mu}"));
     // \let\thinspace\,
     macros.insert_back_macro("\\thinspace", text("\\,"));
     // \def\>{\mskip\medmuskip}
-    // \renewcommand{\:}{\tmspace+\medmuskip{.2222em}}
-    // TODO: \> and math mode of \: should use \medmuskip = 4mu plus 2mu minus 4mu
     macros.insert_back_macro("\\>", text("\\mskip{4mu}"));
-    macros.insert_back_macro("\\:", text("\\tmspace+{4mu}{.2222em}"));
+    macros.insert_back_macro("\\:", text("\\mskip{4mu}"));
     // \let\medspace\:
     macros.insert_back_macro("\\medspace", text("\\:"));
-    // \renewcommand{\;}{\tmspace+\thickmuskip{.2777em}}
-    // TODO: math mode should use \thickmuskip = 5mu plus 5mu
-    macros.insert_back_macro("\\;", text("\\tmspace+{5mu}{.2777em}"));
+    macros.insert_back_macro("\\;", text("\\mskip{5mu}"));
     // \let\thickspace\;
     macros.insert_back_macro("\\thickspace", text("\\;"));
-    // \renewcommand{\!}{\tmspace-\thinmuskip{.1667em}}
-    // TODO: math mode should use \thinmuskip
-    macros.insert_back_macro("\\!", text("\\tmspace-{3mu}{.1667em}"));
+    macros.insert_back_macro("\\!", text("\\mskip{-3mu}"));
     // \let\negthinspace\!
     macros.insert_back_macro("\\negthinspace", text("\\!"));
-    // \newcommand{\negmedspace}{\tmspace-\medmuskip{.2222em}}
-    // TODO: math mode should use \medmuskip
-    macros.insert_back_macro("\\negmedspace", text("\\tmspace-{4mu}{.2222em}"));
-    // \newcommand{\negthickspace}{\tmspace-\thickmuskip{.2777em}}
-    // TODO: math mode should use \thickmuskip
-    macros.insert_back_macro("\\negthickspace", text("\\tmspace-{5mu}{.277em}"));
+    macros.insert_back_macro("\\negmedspace", text("\\mskip{-4mu}"));
+    macros.insert_back_macro("\\negthickspace", text("\\mskip{-5mu}"));
     // \def\enspace{\kern.5em }
     macros.insert_back_macro("\\enspace", text("\\kern.5em "));
     // \def\enskip{\hskip.5em\relax}
