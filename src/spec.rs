@@ -1380,4 +1380,215 @@ mod tests {
 
         // Skipping class checks for now.
     }
+
+    #[test]
+    fn a_boxed_parser() {
+        // should not fail
+        to_parse(r"\boxed{x}", ParserConfig::default());
+        to_parse(r"\boxed{x^2}", ParserConfig::default());
+        to_parse(r"\boxed{x}^2", ParserConfig::default());
+        to_parse(r"\boxed x", ParserConfig::default());
+
+        // should produce enclose
+        {
+            let parse = parse_tree(r"\boxed x", ParserConfig::default()).unwrap();
+            let ParseNode::Enclose(_) = &parse[0] else {
+                panic!("Expected Enclose, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_boxed_builder() {
+        // should not fail
+        to_build(r"\boxed{x}", ParserConfig::default());
+        to_build(r"\boxed{x}^2", ParserConfig::default());
+        to_build(r"\boxed{x}_2", ParserConfig::default());
+        to_build(r"\boxed{x}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn an_fbox_parser_unlike_a_boxed_parser() {
+        // should fail when given math
+        to_not_parse(r"\fbox{\frac a b}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_colorbox_parser() {
+        // should not fail, given a text argument
+        to_parse(r"\colorbox{red}{a b}", ParserConfig::default());
+        to_parse(r"\colorbox{red}{x}^2", ParserConfig::default());
+        to_parse(r"\colorbox{red} x", ParserConfig::default());
+
+        // should fail, given a math argument
+        to_not_parse(r"\colorbox{red}{\alpha}", ParserConfig::default());
+        to_not_parse(r"\colorbox{red}{\frac{a}{b}}", ParserConfig::default());
+
+        // should parse a color
+        to_parse(r"\colorbox{red}{a b}", ParserConfig::default());
+        to_parse(r"\colorbox{#197}{a b}", ParserConfig::default());
+        to_parse(r"\colorbox{#1a9b7c}{a b}", ParserConfig::default());
+
+        // should produce enclose
+        {
+            let parse = parse_tree(r"\colorbox{red} x", ParserConfig::default()).unwrap();
+            let ParseNode::Enclose(_) = &parse[0] else {
+                panic!("Expected Enclose, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_colorbox_builder() {
+        // should not fail
+        to_build(r"\colorbox{red}{a b}", ParserConfig::default());
+        to_build(r"\colorbox{red}{a b}^2", ParserConfig::default());
+        to_build(r"\colorbox{red} x", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn an_fcolorbox_parser() {
+        // should not fail, given a text argument
+        to_parse(r"\fcolorbox{blue}{yellow}{a b}", ParserConfig::default());
+        to_parse(r"\fcolorbox{blue}{yellow}{x}^2", ParserConfig::default());
+        to_parse(r"\fcolorbox{blue}{yellow} x", ParserConfig::default());
+
+        // should fail, given a math argument
+        to_not_parse(r"\fcolorbox{blue}{yellow}{\alpha}", ParserConfig::default());
+        to_not_parse(r"\fcolorbox{blue}{yellow}{\frac{a}{b}}", ParserConfig::default());
+
+        // should parse a color
+        to_parse(r"\fcolorbox{blue}{yellow}{a b}", ParserConfig::default());
+        to_parse(r"\fcolorbox{blue}{#197}{a b}", ParserConfig::default());
+        to_parse(r"\fcolorbox{blue}{#1a9b7c}{a b}", ParserConfig::default());
+
+        // should produce enclose
+        {
+            let parse = parse_tree(r"\fcolorbox{blue}{yellow} x", ParserConfig::default()).unwrap();
+            let ParseNode::Enclose(_) = &parse[0] else {
+                panic!("Expected Enclose, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_fcolorbox_builder() {
+        // should not fail
+        to_build(r"\fcolorbox{blue}{yellow}{a b}", ParserConfig::default());
+        to_build(r"\fcolorbox{blue}{yellow}{a b}^2", ParserConfig::default());
+        to_build(r"\fcolorbox{blue}{yellow} x", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn a_strike_through_parser() {
+        // should not fail
+        to_parse(r"\cancel{x}", ParserConfig::default());
+        to_parse(r"\cancel{x^2}", ParserConfig::default());
+        to_parse(r"\cancel{x}^2", ParserConfig::default());
+        to_parse(r"\cancel x", ParserConfig::default());
+
+        // should produce enclose
+        {
+            let parse = parse_tree(r"\cancel x", ParserConfig::default()).unwrap();
+            let ParseNode::Enclose(_) = &parse[0] else {
+                panic!("Expected Enclose, got {:?}", parse[0]);
+            };
+        }
+
+        // should be grouped more tightly than supsubs
+        {
+            let parse = parse_tree(r"\cancel x^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(_) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_strike_through_builder() {
+        // should not fail
+        to_build(r"\cancel{x}", ParserConfig::default());
+        to_build(r"\cancel{x}^2", ParserConfig::default());
+        to_build(r"\cancel{x}_2", ParserConfig::default());
+        to_build(r"\cancel{x}_2^2", ParserConfig::default());
+        to_build(r"\sout{x}", ParserConfig::default());
+        to_build(r"\sout{x}^2", ParserConfig::default());
+        to_build(r"\sout{x}_2", ParserConfig::default());
+        to_build(r"\sout{x}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn a_actuarial_angle_parser() {
+        // should not fail in math mode
+        to_parse(r"a_{\angl{n}}", ParserConfig::default());
+        // should fail in text mode
+        let mut text_mode_conf = ParserConfig::default();
+        text_mode_conf.display_mode = false;
+        to_not_parse(r"\text{a_{\angl{n}}}", text_mode_conf);
+    }
+
+    #[test]
+    fn a_actuarial_angle_builder() {
+        // should not fail
+        to_build(r"a_{\angl{n}}", ParserConfig::default());
+        to_build(r"a_{\angl{n}i}", ParserConfig::default());
+        to_build(r"a_\angln", ParserConfig::default());
+        to_build(r"a_\angln", ParserConfig::default());
+    }
+
+    #[test]
+    fn phase() {
+        // should fail in text mode
+        let mut text_mode_conf = ParserConfig::default();
+        text_mode_conf.display_mode = false;
+        to_not_parse(r"\text{\phase{-78.2^\circ}}", text_mode_conf);
+        // should not fail in math mode
+        to_build(r"\phase{-78.2^\circ}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_phantom_parser() {
+        // should not fail
+        to_parse(r"\phantom{x}", ParserConfig::default());
+        to_parse(r"\phantom{x^2}", ParserConfig::default());
+        to_parse(r"\phantom{x}^2", ParserConfig::default());
+        to_parse(r"\phantom x", ParserConfig::default());
+        to_parse(r"\hphantom{x}", ParserConfig::default());
+        to_parse(r"\hphantom{x^2}", ParserConfig::default());
+        to_parse(r"\hphantom{x}^2", ParserConfig::default());
+        to_parse(r"\hphantom x", ParserConfig::default());
+
+        // should build a phantom node
+        {
+            let parse = parse_tree(r"\phantom{x}", ParserConfig::default()).unwrap();
+            let ParseNode::Phantom(_) = &parse[0] else {
+                panic!("Expected Phantom, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_phantom_builder() {
+        // should not fail
+        to_build(r"\phantom{x}", ParserConfig::default());
+        to_build(r"\phantom{x^2}", ParserConfig::default());
+        to_build(r"\phantom{x}^2", ParserConfig::default());
+        to_build(r"\phantom x", ParserConfig::default());
+        to_build(r"\mathstrut", ParserConfig::default());
+
+        to_build(r"\hphantom{x}", ParserConfig::default());
+        to_build(r"\hphantom{x^2}", ParserConfig::default());
+        to_build(r"\hphantom{x}^2", ParserConfig::default());
+        to_build(r"\hphantom x", ParserConfig::default());
+
+        // Skipping style checks for now.
+    }
 }
