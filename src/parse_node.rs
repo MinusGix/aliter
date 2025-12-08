@@ -1106,13 +1106,17 @@ impl EqNoLoc for LapNode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LeftRightNode {
-    pub alignment: String,
-    pub body: Box<ParseNode>,
+    pub left: String,
+    pub right: String,
+    pub right_color: Option<Color>,
+    pub body: Vec<ParseNode>,
     pub info: NodeInfo,
 }
 impl EqNoLoc for LeftRightNode {
     fn eq_no_loc(&self, o: &LeftRightNode) -> bool {
-        self.alignment == o.alignment
+        self.left == o.left
+            && self.right == o.right
+            && self.right_color == o.right_color
             && self.body.eq_no_loc(&o.body)
             && self.info.eq_no_loc(&o.info)
     }

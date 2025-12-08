@@ -30,6 +30,8 @@ pub enum BreakToken {
     Dollar,
     /// "\)"
     BackslashRightParen,
+    /// "\right"
+    Right,
     /// "\\"
     DoubleBackslash,
     /// "\end"
@@ -44,6 +46,7 @@ impl BreakToken {
             BreakToken::EndGroup => "\\endgroup",
             BreakToken::Dollar => "$",
             BreakToken::BackslashRightParen => "\\)",
+            BreakToken::Right => "\\right",
             BreakToken::DoubleBackslash => "\\\\",
             BreakToken::End => "\\end",
             BreakToken::EOF => "EOF",
