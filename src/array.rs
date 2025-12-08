@@ -6,8 +6,8 @@ pub enum AlignSpec {
     Align {
         align: Cow<'static, str>,
         // TODO: are these units
-        pre_gap: Option<usize>,
-        post_gap: Option<usize>,
+        pre_gap: Option<f64>,
+        post_gap: Option<f64>,
     },
 }
 

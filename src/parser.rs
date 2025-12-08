@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::{
+    environments::{self, EnvironmentContext, EnvironmentSpec},
     expander::{is_implicit_command, BreakToken, MacroExpander, Mode},
     functions::{FunctionContext, FunctionSpec, Functions},
     lexer::{CategoryCode, Token},
@@ -204,7 +205,7 @@ impl<'a, 'f> Parser<'a, 'f> {
         self.gullet.mode
     }
 
-    fn expect(&mut self, text: &str, consume: bool) -> Result<(), ParseError> {
+    pub(crate) fn expect(&mut self, text: &str, consume: bool) -> Result<(), ParseError> {
         if self.fetch()?.content != text {
             return Err(ParseError::Expected);
         }
@@ -719,7 +720,7 @@ impl<'a, 'f> Parser<'a, 'f> {
     }
 
     /// Call a function handler with a suitable context and arguments
-    fn call_function(
+    pub(crate) fn call_function(
         &mut self,
         name: &str,
         args: &[ParseNode],
@@ -784,6 +785,98 @@ impl<'a, 'f> Parser<'a, 'f> {
         }
 
         Ok(FunctionArguments { args, opt_args })
+    }
+
+    fn parse_environment_arguments(
+        &mut self,
+        spec: Arc<EnvironmentSpec>,
+    ) -> Result<FunctionArguments, ParseError> {
+        let total_args = spec.prop.num_args + spec.prop.num_optional_args;
+        if total_args == 0 {
+            return Ok(FunctionArguments::default());
+        }
+
+        let mut args: Vec<ParseNode> = Vec::new();
+        let mut opt_args: Vec<Option<ParseNode>> = Vec::new();
+
+        for i in 0..total_args {
+            let mut arg_type = spec.prop.arg_types.get(i).copied();
+
+            let is_optional = i < spec.prop.num_optional_args;
+
+            if spec.prop.primitive && arg_type.is_none() {
+                arg_type = Some(ArgType::Primitive);
+            }
+
+            let arg = self.parse_group_of_type("environment", arg_type, is_optional)?;
+            if is_optional {
+                opt_args.push(arg);
+            } else if let Some(arg) = arg {
+                args.push(arg);
+            } else {
+                return Err(ParseError::NullArgument);
+            }
+        }
+
+        Ok(FunctionArguments { args, opt_args })
+    }
+
+    fn env_name_from_arg(&self, arg: &ParseNode) -> Result<String, ParseError> {
+        if let Some(text) = arg.text() {
+            return Ok(text.to_string());
+        }
+
+        if let ParseNode::OrdGroup(ord) = arg {
+            let mut name = String::new();
+            for node in &ord.body {
+                if let Some(text) = node.text() {
+                    name.push_str(text);
+                } else {
+                    return Err(ParseError::Expected);
+                }
+            }
+            return Ok(name);
+        }
+
+        Err(ParseError::Expected)
+    }
+
+    fn parse_begin_environment(
+        &mut self,
+        _break_on_token_text: Option<BreakToken>,
+    ) -> Result<ParseNode, ParseError> {
+        let _begin_token = self.fetch()?.clone();
+        self.consume();
+
+        let name_group = self
+            .parse_group_of_type("environment", Some(ArgType::Mode(Mode::Text)), false)?
+            .ok_or(ParseError::ExpectedGroup)?;
+        let env_name = self.env_name_from_arg(&name_group)?;
+        let spec = environments::ENVIRONMENTS
+            .get(env_name.as_str())
+            .ok_or(ParseError::UndefinedControlSequence("\\begin".to_string()))?
+            .clone();
+
+        let FunctionArguments { args, opt_args } = self.parse_environment_arguments(spec.clone())?;
+
+        let ctx = EnvironmentContext {
+            mode: self.mode(),
+            env_name: Cow::Owned(env_name.clone()),
+            parser: self,
+        };
+
+        let res = (spec.handler)(ctx, &args, &opt_args)?;
+
+        self.expect("\\end", true)?;
+        let end_name_group = self
+            .parse_group_of_type("environment", Some(ArgType::Mode(Mode::Text)), false)?
+            .ok_or(ParseError::ExpectedGroup)?;
+        let end_name = self.env_name_from_arg(&end_name_group)?;
+        if end_name != env_name {
+            return Err(ParseError::Expected);
+        }
+
+        Ok(res)
     }
 
     fn parse_group_of_type(
@@ -957,7 +1050,7 @@ impl<'a, 'f> Parser<'a, 'f> {
         }))
     }
 
-    fn parse_size_group(&mut self, optional: bool) -> Result<Option<SizeNode>, ParseError> {
+    pub(crate) fn parse_size_group(&mut self, optional: bool) -> Result<Option<SizeNode>, ParseError> {
         let mut is_blank = false;
 
         // don't expand before parseStringGroup
@@ -1149,6 +1242,9 @@ impl<'a, 'f> Parser<'a, 'f> {
                     loc,
                 },
             })))
+        } else if first_token.content == "\\begin" {
+            let env = self.parse_begin_environment(break_on_token_text)?;
+            Ok(Some(env))
         } else {
             let res = self.parse_function(break_on_token_text, Some(name))?;
             let res = if let Some(res) = res {

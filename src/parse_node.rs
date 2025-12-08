@@ -511,32 +511,49 @@ impl EqNoLoc for NodeInfo {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArrayNode {
+    pub body: Vec<Vec<ParseNode>>,
     pub col_separation_type: Option<ColSeparationType>,
     pub h_skip_before_and_after: Option<bool>,
     pub add_jot: Option<bool>,
     pub cols: Option<Vec<AlignSpec>>,
-    pub array_stretch: usize,
-    // TODO: body?
+    pub array_stretch: f64,
     pub row_gaps: Vec<Option<Measurement>>,
     pub h_lines_before_row: Vec<Vec<bool>>,
     /// Whether each row should be automatically number or an explicit tag
-    // TODO: pub tags:
+    pub tags: Option<Vec<ArrayTag>>,
     pub leq_no: Option<bool>,
     pub is_cd: Option<bool>,
     pub info: NodeInfo,
 }
 impl EqNoLoc for ArrayNode {
     fn eq_no_loc(&self, o: &Self) -> bool {
-        self.col_separation_type == o.col_separation_type
+        self.body.eq_no_loc(&o.body)
+            && self.col_separation_type == o.col_separation_type
             && self.h_skip_before_and_after == o.h_skip_before_and_after
             && self.add_jot == o.add_jot
             && self.cols == o.cols
             && self.array_stretch == o.array_stretch
             && self.row_gaps == o.row_gaps
             && self.h_lines_before_row == o.h_lines_before_row
+            && self.tags.eq_no_loc(&o.tags)
             && self.leq_no == o.leq_no
             && self.is_cd == o.is_cd
             && self.info.eq_no_loc(&o.info)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayTag {
+    Boolean(bool),
+    Tag(Vec<ParseNode>),
+}
+impl EqNoLoc for ArrayTag {
+    fn eq_no_loc(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ArrayTag::Boolean(a), ArrayTag::Boolean(b)) => a == b,
+            (ArrayTag::Tag(a), ArrayTag::Tag(b)) => a.eq_no_loc(b),
+            _ => false,
+        }
     }
 }
 
