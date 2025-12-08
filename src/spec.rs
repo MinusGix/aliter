@@ -2333,8 +2333,113 @@ mod tests {
     }
 
     #[test]
-    fn relax() {
-        to_not_parse(r"\kern2\relax em", ParserConfig::default());
+    fn a_texvc_builder() {
+        // should not fail
+        to_build(r"\lang\N\darr\R\dArr\Z\Darr\alef\rang", ParserConfig::default());
+        to_build(r"\alefsym\uarr\Alpha\uArr\Beta\Uarr\Chi", ParserConfig::default());
+        to_build(r"\clubs\diamonds\hearts\spades\cnums\Complex", ParserConfig::default());
+        to_build(r"\Dagger\empty\harr\Epsilon\hArr\Eta\Harr\exist", ParserConfig::default());
+        to_build(r"\image\larr\infin\lArr\Iota\Larr\isin\Kappa", ParserConfig::default());
+        to_build(r"\Mu\lrarr\natnums\lrArr\Nu\Lrarr\Omicron", ParserConfig::default());
+        to_build(r"\real\rarr\plusmn\rArr\reals\Rarr\Reals\Rho", ParserConfig::default());
+        to_build(r"\text{\sect}\sdot\sub\sube\supe", ParserConfig::default());
+        to_build(r"\Tau\thetasym\weierp\Zeta", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_non_braced_kern_parser() {
+        let em_kern = r"\kern1em";
+        let ex_kern = r"\kern 1 ex";
+        let mu_kern = r"\mkern 1mu";
+        let ab_kern1 = r"a\mkern1mub";
+        let ab_kern2 = r"a\mkern-1mub";
+        let ab_kern3 = r"a\mkern-1mu b";
+        let bad_unit_rule = r"\kern1au";
+        let no_number_rule = r"\kern em";
+
+        // should list the correct units
+        {
+            let em_parse = parse_tree(em_kern, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &em_parse[0] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "em");
+
+            let ex_parse = parse_tree(ex_kern, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &ex_parse[0] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "ex");
+
+            let mu_parse = parse_tree(mu_kern, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &mu_parse[0] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "mu");
+
+            let ab_parse1 = parse_tree(ab_kern1, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &ab_parse[1] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "mu");
+
+            let ab_parse2 = parse_tree(ab_kern2, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &ab_parse[1] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "mu");
+
+            let ab_parse3 = parse_tree(ab_kern3, ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &ab_parse[1] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "mu");
+        }
+
+        // should parse elements on either side of a kern
+        {
+            let ab_parse1 = parse_tree(ab_kern1, ParserConfig::default()).unwrap();
+            let ab_parse2 = parse_tree(ab_kern2, ParserConfig::default()).unwrap();
+            let ab_parse3 = parse_tree(ab_kern3, ParserConfig::default()).unwrap();
+
+            assert_eq!(ab_parse1.len(), 3);
+            let ParseNode::MathOrd(ord) = &ab_parse1[0] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "a");
+            let ParseNode::MathOrd(ord) = &ab_parse1[2] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "b");
+
+            assert_eq!(ab_parse2.len(), 3);
+            let ParseNode::MathOrd(ord) = &ab_parse2[0] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "a");
+            let ParseNode::MathOrd(ord) = &ab_parse2[2] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "b");
+
+            assert_eq!(ab_parse3.len(), 3);
+            let ParseNode::MathOrd(ord) = &ab_parse3[0] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "a");
+            let ParseNode::MathOrd(ord) = &ab_parse3[2] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "b");
+        }
+
+        // should not parse invalid units
+        to_not_parse(bad_unit_rule, ParserConfig::default());
+        to_not_parse(no_number_rule, ParserConfig::default());
+
+        // should parse negative sizes
+        {
+            let parse = parse_tree(r"\kern-1em", ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &parse[0] else { panic!("Expected Kern") };
+            assert!((kern.dimension.number - -1.0).abs() < 1e-6);
+        }
+
+        // should parse positive sizes
+        {
+            let parse = parse_tree(r"\kern+1em", ParserConfig::default()).unwrap();
+            let ParseNode::Kern(kern) = &parse[0] else { panic!("Expected Kern") };
+            assert!((kern.dimension.number - 1.0).abs() < 1e-6);
+        }
+
+        // should handle whitespace
+        {
+            let ab_kern = "a\\mkern\t-\r1  \n mu\nb";
+            let ab_parse = parse_tree(ab_kern, ParserConfig::default()).unwrap();
+
+            assert_eq!(ab_parse.len(), 3);
+            let ParseNode::MathOrd(ord) = &ab_parse[0] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "a");
+            let ParseNode::Kern(kern) = &ab_parse[1] else { panic!("Expected Kern") };
+            assert_eq!(kern.dimension.unit, "mu");
+            let ParseNode::MathOrd(ord) = &ab_parse[2] else { panic!("Expected MathOrd") };
+            assert_eq!(ord.text, "b");
+        }
     }
 }
 
