@@ -31,33 +31,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn an_includegraphics_builder() {
-    // TODO: port "An includegraphics builder" from katex-spec.js:2073
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn an_html_extension_builder() {
-    // TODO: port "An HTML extension builder" from katex-spec.js:2094
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_bin_builder() {
-    // TODO: port "A bin builder" from katex-spec.js:2124
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_phantom_builder_and_smash_builder() {
-    // TODO: port "A \\phantom builder and \\smash builder" from katex-spec.js:2154
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]

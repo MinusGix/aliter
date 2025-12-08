@@ -439,3 +439,102 @@ fn a_mathml_font_tree_builder() {
         assert!(markup.contains(r#"</mstyle>"#));
     }
 }
+
+fn render_with_conf(expr: &str, conf: ParserConfig) -> String {
+    let tree = render_to_html_tree(expr, conf);
+    tree.to_markup()
+}
+
+
+#[test]
+fn an_includegraphics_builder() {
+    let img = r"\includegraphics[height=0.9em, totalheight=0.9em, width=0.9em, alt=KA logo]{https://cdn.kastatic.org/images/apple-touch-icon-57x57-precomposed.new.png}";
+
+    // should not fail
+    let mut trust_conf = ParserConfig::default();
+    trust_conf.trust = true;
+    to_build(img, trust_conf.clone());
+
+    // should produce mords
+    let html = render_with_conf(img, trust_conf.clone());
+    assert!(html.contains("mord"));
+
+    // should not render without trust setting
+    let no_trust_conf = ParserConfig::default(); // trust is false by default
+    let html_no_trust = render_with_conf(img, no_trust_conf.clone());
+    assert!(!html_no_trust.contains("<img"));
+    assert!(!html_no_trust.contains("cdn.kastatic.org"));
+
+    // should render with trust setting
+    let html_with_trust = render_with_conf(img, trust_conf.clone());
+    assert!(html_with_trust.contains("<img"));
+    assert!(html_with_trust.contains("cdn.kastatic.org"));
+    assert!(html_with_trust.contains(r#"height="0.9em""#));
+    assert!(html_with_trust.contains(r#"width="0.9em""#));
+    assert!(html_with_trust.contains(r#"alt="KA logo""#));
+}
+
+#[test]
+fn an_html_extension_builder() {
+    let html_expr = r"\htmlId{bar}{x}\htmlClass{foo}{x}\htmlStyle{color: red;}{x}\htmlData{foo=a, bar=b}{x}";
+    let mut conf = ParserConfig::default();
+    conf.trust = true;
+    // The original test uses `strict: false`, but aliter has StrictMode::Warn by default.
+
+    // should not fail
+    to_build(html_expr, conf.clone());
+
+    // should set HTML attributes
+    let rendered = render_with_conf(html_expr, conf.clone());
+    assert!(rendered.contains(r#"id="bar""#));
+    assert!(rendered.contains(r#"class="foo""#)); 
+    assert!(rendered.contains(r#"style="color: red;""#));
+    assert!(rendered.contains(r#"data-bar="b""#));
+    assert!(rendered.contains(r#"data-foo="a""#));
+
+    // should not affect spacing
+    let spacing_html = r"\htmlId{a}{x+}y";
+    let rendered_spacing = render_with_conf(spacing_html, conf.clone());
+    assert!(!rendered_spacing.is_empty()); 
+}
+
+#[test]
+fn a_bin_builder() {
+    let conf = ParserConfig::default();
+
+    // should create mbins normally
+    let html_x_plus_y = render_with_conf("x + y", conf.clone());
+    assert!(html_x_plus_y.contains(r#"mbin"#)); 
+
+    // should create ords when at the beginning of lists
+    let html_plus_x = render_with_conf("+ x", conf.clone());
+    assert!(html_plus_x.contains(r#"mord"#));
+    assert!(!html_plus_x.contains(r#"mbin"#)); 
+
+    // should create ords after some other objects
+    assert!(render_with_conf("x + + 2", conf.clone()).contains("mord"));
+    assert!(render_with_conf("( + 2", conf.clone()).contains("mord"));
+    assert!(render_with_conf("= + 2", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"\sin + 2", conf.clone()).contains("mord"));
+    assert!(render_with_conf(", + 2", conf.clone()).contains("mord"));
+
+    // should correctly interact with color objects
+    let html_color_bin = render_with_conf(r"\blue{x}+y", conf.clone());
+    assert!(html_color_bin.contains(r#"mbin"#));
+
+    let html_color_bin_nested = render_with_conf(r"\blue{x+}+y", conf.clone());
+    assert!(html_color_bin_nested.contains(r#"mbin"#));
+}
+
+#[test]
+fn a_phantom_builder_and_smash_builder() {
+    let conf = ParserConfig::default();
+
+    // should both build a mord
+    assert!(render_with_conf(r"\hphantom{a}", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"a\hphantom{=}b", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"a\hphantom{+}b", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"\smash{a}", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"\smash{=}", conf.clone()).contains("mord"));
+    assert!(render_with_conf(r"a\smash{+}b", conf.clone()).contains("mord"));
+}
