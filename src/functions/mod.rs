@@ -37,6 +37,7 @@ mod op;
 mod overline;
 mod ord_group;
 mod underline;
+mod phantom;
 mod raise_box;
 mod sizing;
 mod sqrt;
@@ -71,6 +72,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     overline::add_functions(&mut fns);
     ord_group::add_functions(&mut fns);
     underline::add_functions(&mut fns);
+    phantom::add_functions(&mut fns);
     raise_box::add_functions(&mut fns);
     sizing::add_functions(&mut fns);
     sqrt::add_functions(&mut fns);
