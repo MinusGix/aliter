@@ -384,6 +384,7 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         expandable_only: bool,
     ) -> Result<TokenList<'_>, ParseError> {
         let top_token = self.pop_token()?;
+        let _macro_name = top_token.content.clone();
 
         let expansion = if !top_token.no_expand {
             self.get_expansion(&top_token.content)?
@@ -424,44 +425,36 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
 
         let args = self.consume_args_delim(num_args, delimiters)?;
         if num_args != 0 {
-            // paste arguments in place of placeholders
-            let tokens_len = tokens.len();
-            for i in (0..tokens_len).rev() {
-                let tok = &tokens[i];
-                if tok.content == "#" {
+            // paste arguments in place of placeholders (tokens are stored in reverse order)
+            let mut i = tokens.len();
+            while i > 0 {
+                i -= 1;
+                if tokens[i].content == "#" {
                     if i == 0 {
                         return Err(ParseError::IncompletePlaceholder);
                     }
 
-                    let ni = i - 1;
-                    let next_tok = tokens.get(ni);
-                    if let Some(content) = next_tok.map(|t| &t.content) {
-                        if content == "#" {
-                            // ## -> #
-                            // drop the first #
-                            tokens.remove(i);
-                            continue;
-                        } else if content.len() == 1 {
-                            let ch = content.chars().next().unwrap();
-                            // We only allow 1-9
+                    let prev_content = tokens[i - 1].content.clone();
+                    if prev_content == "#" {
+                        // ## -> literal #
+                        tokens.remove(i);
+                        if i > 0 {
+                            i -= 1; // skip the remaining '#'
+                        }
+                        continue;
+                    }
+
+                    if prev_content.len() == 1 {
+                        if let Some(ch) = prev_content.chars().next() {
                             if ch != '0' {
                                 if let Some(arg_index) = ch.to_digit(10) {
-                                    // We shift the 1-9 index to a 0-8 index
                                     let arg_index = (arg_index - 1) as usize;
 
-                                    // Remove both the # and the digit
-                                    tokens.remove(ni);
-                                    tokens.remove(ni);
-                                    // Insert the args at the index
-                                    // We can't just take ownership as you could use the same arg
-                                    // multiple times
+                                    let i_args = args
+                                        .get(arg_index)
+                                        .ok_or(ParseError::InvalidArgumentNumber)?;
 
-                                    // TODO: Check that we actually have the args
-
-                                    let i_args = &args[arg_index];
-                                    for arg in i_args {
-                                        tokens.insert(ni, arg.clone());
-                                    }
+                                    tokens.splice(i - 1..=i, i_args.iter().cloned());
 
                                     continue;
                                 }
