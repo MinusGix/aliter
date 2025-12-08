@@ -1234,4 +1234,74 @@ mod tests {
         // stripPositions() corresponds to EqNoLoc in our context
         to_parse_like(r"\sigma^2", r"\sigma^2", ParserConfig::default());
     }
+
+    #[test]
+    fn an_accent_builder() {
+        // should not fail
+        to_build(r"\vec{x}", ParserConfig::default());
+        to_build(r"\vec{x}^2", ParserConfig::default());
+        to_build(r"\vec{x}_2", ParserConfig::default());
+        to_build(r"\vec{x}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn a_stretchy_and_shifty_accent_builder() {
+        // should not fail
+        to_build(r"\widehat{AB}", ParserConfig::default());
+        to_build(r"\widecheck{AB}", ParserConfig::default());
+        to_build(r"\widehat{AB}^2", ParserConfig::default());
+        to_build(r"\widehat{AB}_2", ParserConfig::default());
+        to_build(r"\widehat{AB}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn a_stretchy_and_non_shifty_accent_builder() {
+        // should not fail
+        to_build(r"\overrightarrow{AB}", ParserConfig::default());
+        to_build(r"\overrightarrow{AB}^2", ParserConfig::default());
+        to_build(r"\overrightarrow{AB}_2", ParserConfig::default());
+        to_build(r"\overrightarrow{AB}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn an_under_accent_parser() {
+        // should not fail
+        to_parse(r"\underrightarrow{x}", ParserConfig::default());
+        to_parse(r"\underrightarrow{x^2}", ParserConfig::default());
+        to_parse(r"\underrightarrow{x}^2", ParserConfig::default());
+        to_parse(r"\underrightarrow x", ParserConfig::default());
+
+        // should produce accentUnder
+        {
+            let parse = parse_tree(r"\underrightarrow x", ParserConfig::default()).unwrap();
+            let ParseNode::AccentUnder(_) = &parse[0] else {
+                panic!("Expected AccentUnder, got {:?}", parse[0]);
+            };
+        }
+
+        // should be grouped more tightly than supsubs
+        {
+            let parse = parse_tree(r"\underrightarrow x^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(_) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn an_under_accent_builder() {
+        // should not fail
+        to_build(r"\underrightarrow{x}", ParserConfig::default());
+        to_build(r"\underrightarrow{x}^2", ParserConfig::default());
+        to_build(r"\underrightarrow{x}_2", ParserConfig::default());
+        to_build(r"\underrightarrow{x}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
 }

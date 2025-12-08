@@ -35,47 +35,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn an_accent_builder() {
-    // TODO: port "An accent builder" from katex-spec.js:2221
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn a_stretchy_and_shifty_accent_builder() {
-    // TODO: port "A stretchy and shifty accent builder" from katex-spec.js:2238
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_stretchy_and_non_shifty_accent_builder() {
-    // TODO: port "A stretchy and non-shifty accent builder" from katex-spec.js:2256
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_stretchy_mathml_builder() {
-    // TODO: port "A stretchy MathML builder" from katex-spec.js:2273
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn an_under_accent_parser() {
-    // TODO: port "An under-accent parser" from katex-spec.js:2282
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn an_under_accent_builder() {
-    // TODO: port "An under-accent builder" from katex-spec.js:2303
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]

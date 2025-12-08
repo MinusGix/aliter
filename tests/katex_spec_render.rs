@@ -557,3 +557,12 @@ fn a_markup_generator() {
         assert!(markup.contains("<math"));
     }
 }
+
+#[test]
+#[cfg(feature = "mathml")]
+fn a_stretchy_mathml_builder() {
+    // should properly render stretchy accents
+    let tex = r"\widetilde{ABCD}";
+    let markup = render_mathml(tex);
+    assert!(markup.contains(r#"<mo stretchy="true">~</mo>"#));
+}
