@@ -1228,8 +1228,6 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
     // Stub implementations for unported functions (parse-only placeholders)
     macros.insert_back_macro("\\left", text(""));
     macros.insert_back_macro("\\right", text(""));
-    macros.insert_back_macro("\\overbrace", text("{#1}"));
-    macros.insert_back_macro("\\underbrace", text("{#1}"));
     macros.insert_back_macro("\\rule", text("{#1}{#2}"));
 
     macros
