@@ -1227,4 +1227,11 @@ mod tests {
         // should not include comments in the output
         to_parse_like("5 % comment\n", "5", ParserConfig::default());
     }
+
+    #[test]
+    fn a_parse_tree_generator() {
+        // generates a tree
+        // stripPositions() corresponds to EqNoLoc in our context
+        to_parse_like(r"\sigma^2", r"\sigma^2", ParserConfig::default());
+    }
 }

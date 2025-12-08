@@ -538,3 +538,22 @@ fn a_phantom_builder_and_smash_builder() {
     assert!(render_with_conf(r"\smash{=}", conf.clone()).contains("mord"));
     assert!(render_with_conf(r"a\smash{+}b", conf.clone()).contains("mord"));
 }
+
+#[test]
+fn a_markup_generator() {
+    // marks trees up
+    {
+        let markup = render(r"\sigma^2");
+        assert!(markup.starts_with("<span"));
+        assert!(markup.contains("\u{03c3}")); // sigma
+        assert!(markup.contains("margin-right"));
+        assert!(!markup.contains("marginRight"));
+    }
+
+    // generates both MathML and HTML
+    {
+        let markup = render("a");
+        assert!(markup.contains("<span"));
+        assert!(markup.contains("<math"));
+    }
+}

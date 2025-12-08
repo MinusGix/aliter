@@ -33,19 +33,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn a_markup_generator() {
-    // TODO: port "A markup generator" from katex-spec.js:2165
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn a_parse_tree_generator() {
-    // TODO: port "A parse tree generator" from katex-spec.js:2183
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]
