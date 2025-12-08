@@ -453,7 +453,7 @@ fn an_includegraphics_builder() {
     // should not fail
     let mut trust_conf = ParserConfig::default();
     trust_conf.trust = true;
-    to_build(img, trust_conf.clone());
+    render_with_conf(img, trust_conf.clone());
 
     // should produce mords
     let html = render_with_conf(img, trust_conf.clone());
@@ -482,7 +482,7 @@ fn an_html_extension_builder() {
     // The original test uses `strict: false`, but aliter has StrictMode::Warn by default.
 
     // should not fail
-    to_build(html_expr, conf.clone());
+    render_with_conf(html_expr, conf.clone());
 
     // should set HTML attributes
     let rendered = render_with_conf(html_expr, conf.clone());
