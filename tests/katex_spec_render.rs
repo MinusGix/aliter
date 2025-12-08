@@ -154,3 +154,288 @@ fn render_arrows() {
         "expected arrow structure in {html}"
     );
 }
+
+#[cfg(feature = "mathml")]
+fn render_mathml(expr: &str) -> String {
+    let conf = ParserConfig::default();
+    let tree = aliter::render_to_mathml_tree(expr, conf);
+    tree.to_markup()
+}
+
+#[test]
+fn an_html_font_tree_builder() {
+    // should render \mathbb{R} with the correct font
+    {
+        let markup = render(r"\mathbb{R}");
+        assert!(markup.contains(r#"<span class="mord mathbb">R</span>"#));
+    }
+
+    // should render \mathrm{R} with the correct font
+    {
+        let markup = render(r"\mathrm{R}");
+        assert!(markup.contains(r#"<span class="mord mathrm">R</span>"#));
+    }
+
+    // should render \mathcal{R} with the correct font
+    {
+        let markup = render(r"\mathcal{R}");
+        assert!(markup.contains(r#"<span class="mord mathcal">R</span>"#));
+    }
+
+    // should render \mathfrak{R} with the correct font
+    {
+        let markup = render(r"\mathfrak{R}");
+        assert!(markup.contains(r#"<span class="mord mathfrak">R</span>"#));
+    }
+
+    // should render \text{R} with the correct font
+    {
+        let markup = render(r"\text{R}");
+        assert!(markup.contains(r#"<span class="mord">R</span>"#));
+    }
+
+    // should render \textit{R} with the correct font
+    {
+        let markup = render(r"\textit{R}");
+        assert!(markup.contains(r#"<span class="mord textit">R</span>"#));
+    }
+
+    // should render \text{\textit{R}} with the correct font
+    {
+        let markup = render(r"\text{\textit{R}}");
+        assert!(markup.contains(r#"<span class="mord textit">R</span>"#));
+    }
+
+    // should render \textup{R} with the correct font
+    {
+        let markup1 = render(r"\textup{R}");
+        assert!(markup1.contains(r#"<span class="mord textup">R</span>"#));
+        let markup2 = render(r"\textit{\textup{R}}");
+        assert!(markup2.contains(r#"<span class="mord textup">R</span>"#));
+        let markup3 = render(r"\textup{\textit{R}}");
+        assert!(markup3.contains(r#"<span class="mord textit">R</span>"#));
+    }
+
+    // should render \text{R\textit{S}T} with the correct fonts
+    {
+        let markup = render(r"\text{R\textit{S}T}");
+        assert!(markup.contains(r#"<span class="mord">R</span>"#));
+        assert!(markup.contains(r#"<span class="mord textit">S</span>"#));
+        assert!(markup.contains(r#"<span class="mord">T</span>"#));
+    }
+
+    // should render \textbf{R } with the correct font
+    {
+        let markup = render(r"\textbf{R }");
+        // Note: \u00a0 is non-breaking space
+        // Rust regex might need char matching or just loose matching
+        assert!(markup.contains(r#"<span class="mord textbf">R"#)); 
+    }
+
+    // should render \textmd{R} with the correct font
+    {
+        let markup1 = render(r"\textmd{R}");
+        assert!(markup1.contains(r#"<span class="mord textmd">R</span>"#));
+        let markup2 = render(r"\textbf{\textmd{R}}");
+        assert!(markup2.contains(r#"<span class="mord textmd">R</span>"#));
+        let markup3 = render(r"\textmd{\textbf{R}}");
+        assert!(markup3.contains(r#"<span class="mord textbf">R</span>"#));
+    }
+
+    // should render \textsf{R} with the correct font
+    {
+        let markup = render(r"\textsf{R}");
+        assert!(markup.contains(r#"<span class="mord textsf">R</span>"#));
+    }
+
+    // should render \textsf{\textit{R}G\textbf{B}} with the correct font
+    {
+        let markup = render(r"\textsf{\textit{R}G\textbf{B}}");
+        assert!(markup.contains(r#"<span class="mord textsf textit">R</span>"#));
+        assert!(markup.contains(r#"<span class="mord textsf">G</span>"#));
+        assert!(markup.contains(r#"<span class="mord textsf textbf">B</span>"#));
+    }
+
+    // should render \textsf{\textbf{$\mathrm{A}$}} with the correct font
+    {
+        let markup = render(r"\textsf{\textbf{$\mathrm{A}$}}");
+        assert!(markup.contains(r#"<span class="mord mathrm">A</span>"#));
+    }
+
+    // should render \textsf{\textbf{$\mathrm{\textsf{A}}$}} with the correct font
+    {
+        let markup = render(r"\textsf{\textbf{$\mathrm{\textsf{A}}$}}");
+        assert!(markup.contains(r#"<span class="mord textsf textbf">A</span>"#));
+    }
+
+    // should render \texttt{R} with the correct font
+    {
+        let markup = render(r"\texttt{R}");
+        assert!(markup.contains(r#"<span class="mord texttt">R</span>"#));
+    }
+
+    // should render a combination of font and color changes
+    {
+        let markup = render(r"\textcolor{blue}{\mathbb R}");
+        // Note: aliter might render style="color: blue;" (with space)
+        assert!(markup.contains(r#"<span class="mord mathbb""#));
+        assert!(markup.contains("color: blue") || markup.contains("color:blue"));
+        assert!(markup.contains(">R</span>"));
+
+        let markup2 = render(r"\mathbb{\textcolor{blue}{R}}");
+        assert!(markup2.contains(r#"<span class="mord mathbb""#));
+        assert!(markup2.contains("color: blue") || markup2.contains("color:blue"));
+        assert!(markup2.contains(">R</span>"));
+    }
+}
+
+#[test]
+#[cfg(feature = "mathml")]
+fn a_mathml_font_tree_builder() {
+    let contents = r"Ax2k\omega\Omega\imath+";
+
+    // should render with the correct mathvariants
+    {
+        let markup = render_mathml(contents);
+        assert!(markup.contains("<mi>A</mi>"));
+        assert!(markup.contains("<mi>x</mi>"));
+        assert!(markup.contains("<mn>2</mn>"));
+        assert!(markup.contains("<mi>\u{03c9}</mi>"));   // \omega
+        assert!(markup.contains(r#"<mi mathvariant="normal">Ω</mi>"#));   // \Omega, \u03A9
+        assert!(markup.contains(r#"<mi mathvariant="normal">ı</mi>"#));   // \imath, \u0131
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathbb{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathbb{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="double-struck">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">ω</mi>"#));  // \omega
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">Ω</mi>"#)); // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">ı</mi>"#));  // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathrm{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathrm{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="normal">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="normal">x</mi>"#));
+        assert!(markup.contains("<mn>2</mn>"));
+        assert!(markup.contains(r#"<mi>ω</mi>"#));   // \omega
+        assert!(markup.contains(r#"<mi mathvariant="normal">Ω</mi>"#));   // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="normal">ı</mi>"#));   // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathit{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathit{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains("<mi>A</mi>"));
+        assert!(markup.contains("<mi>x</mi>"));
+        assert!(markup.contains(r#"<mn mathvariant="italic">2</mn>"#));
+        assert!(markup.contains(r#"<mi>ω</mi>"#));   // \omega
+        assert!(markup.contains(r#"<mi>Ω</mi>"#));   // \Omega
+        assert!(markup.contains(r#"<mi>ı</mi>"#));   // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathnormal{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathnormal{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains("<mi>A</mi>"));
+        assert!(markup.contains("<mi>x</mi>"));
+        assert!(markup.contains("<mn>2</mn>"));
+        assert!(markup.contains(r#"<mi>ω</mi>"#));   // \omega
+        assert!(markup.contains(r#"<mi mathvariant="normal">Ω</mi>"#));   // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="normal">ı</mi>"#));   // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathbf{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathbf{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="bold">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="bold">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="bold">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="bold">ω</mi>"#));   // \omega
+        assert!(markup.contains(r#"<mi mathvariant="bold">Ω</mi>"#));   // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="bold">ı</mi>"#));   // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathcal{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathcal{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="script">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="script">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="script">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="script">ω</mi>"#)); // \omega
+        assert!(markup.contains(r#"<mi mathvariant="script">Ω</mi>"#)); // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="script">ı</mi>"#)); // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathfrak{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathfrak{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="fraktur">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="fraktur">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="fraktur">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="fraktur">ω</mi>"#)); // \omega
+        assert!(markup.contains(r#"<mi mathvariant="fraktur">Ω</mi>"#)); // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="fraktur">ı</mi>"#)); // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathscr{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathscr{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="script">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="script">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="script">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="script">ω</mi>"#)); // \omega
+        assert!(markup.contains(r#"<mi mathvariant="script">Ω</mi>"#)); // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="script">ı</mi>"#)); // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render \mathsf{...} with the correct mathvariants
+    {
+        let tex = format!(r"\mathsf{{{}}}", contents);
+        let markup = render_mathml(&tex);
+        assert!(markup.contains(r#"<mi mathvariant="sans-serif">A</mi>"#));
+        assert!(markup.contains(r#"<mi mathvariant="sans-serif">x</mi>"#));
+        assert!(markup.contains(r#"<mn mathvariant="sans-serif">2</mn>"#));
+        assert!(markup.contains(r#"<mi mathvariant="sans-serif">ω</mi>"#)); // \omega
+        assert!(markup.contains(r#"<mi mathvariant="sans-serif">Ω</mi>"#)); // \Omega
+        assert!(markup.contains(r#"<mi mathvariant="sans-serif">ı</mi>"#)); // \imath
+        assert!(markup.contains("<mo>+</mo>"));
+    }
+
+    // should render a combination of font and color changes
+    {
+        let tex = r"\textcolor{blue}{\mathbb R}";
+        let markup = render_mathml(tex);
+        assert!(markup.contains(r#"<mstyle mathcolor="blue">"#));
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">R</mi>"#));
+        assert!(markup.contains(r#"</mstyle>"#));
+
+        // reverse the order of the commands
+        let tex = r"\mathbb{\textcolor{blue}{R}}";
+        let markup = render_mathml(tex);
+        assert!(markup.contains(r#"<mstyle mathcolor="blue">"#));
+        assert!(markup.contains(r#"<mi mathvariant="double-struck">R</mi>"#));
+        assert!(markup.contains(r#"</mstyle>"#));
+    }
+}

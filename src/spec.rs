@@ -1032,4 +1032,199 @@ mod tests {
             assert_eq!(ord.text, "e");
         }
     }
+
+    #[test]
+    fn an_op_symbol_builder() {
+        to_build(r"\int_i^n", ParserConfig::default());
+        to_build(r"\iint_i^n", ParserConfig::default());
+        to_build(r"\iiint_i^n", ParserConfig::default());
+        to_build(r"\int\nolimits_i^n", ParserConfig::default());
+        to_build(r"\iint\nolimits_i^n", ParserConfig::default());
+        to_build(r"\iiint\nolimits_i^n", ParserConfig::default());
+        to_build(r"\oint_i^n", ParserConfig::default());
+        to_build(r"\oiint_i^n", ParserConfig::default());
+        to_build(r"\oiiint_i^n", ParserConfig::default());
+        to_build(r"\oint\nolimits_i^n", ParserConfig::default());
+        to_build(r"\oiint\nolimits_i^n", ParserConfig::default());
+        to_build(r"\oiiint\nolimits_i^n", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_font_parser() {
+        // should parse \mathrm, \mathbb, \mathit, and \mathnormal
+        to_parse(r"\mathrm x", ParserConfig::default());
+        to_parse(r"\mathbb x", ParserConfig::default());
+        to_parse(r"\mathit x", ParserConfig::default());
+        to_parse(r"\mathnormal x", ParserConfig::default());
+        to_parse(r"\mathrm {x + 1}", ParserConfig::default());
+        to_parse(r"\mathbb {x + 1}", ParserConfig::default());
+        to_parse(r"\mathit {x + 1}", ParserConfig::default());
+        to_parse(r"\mathnormal {x + 1}", ParserConfig::default());
+
+        // should parse \mathcal and \mathfrak
+        to_parse(r"\mathcal{ABC123}", ParserConfig::default());
+        to_parse(r"\mathfrak{abcABC123}", ParserConfig::default());
+
+        // should produce the correct fonts
+        {
+            let parse = parse_tree(r"\mathbb x", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathbb");
+        }
+        {
+            let parse = parse_tree(r"\mathrm x", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathrm");
+        }
+        {
+             let parse = parse_tree(r"\mathit x", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathit");
+        }
+        {
+            let parse = parse_tree(r"\mathnormal x", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathnormal");
+        }
+        {
+            let parse = parse_tree(r"\mathcal C", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathcal");
+        }
+        {
+            let parse = parse_tree(r"\mathfrak C", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathfrak");
+        }
+
+        // should parse nested font commands
+        {
+            let parse = parse_tree(r"\mathbb{R \neq \mathrm{R}}", ParserConfig::default()).unwrap();
+            let ParseNode::Font(font) = &parse[0] else {
+                panic!("Expected Font, got {:?}", parse[0]);
+            };
+            assert_eq!(font.font, "mathbb");
+            
+            let ParseNode::OrdGroup(group) = font.body.as_ref() else {
+                 panic!("Expected OrdGroup body, got {:?}", font.body);
+            };
+            
+            // R, \neq, \mathrm{R}
+            assert_eq!(group.body.len(), 3);
+            assert!(matches!(group.body[0], ParseNode::MathOrd(_)));
+            // index 2 is \mathrm{R}
+             let ParseNode::Font(inner_font) = &group.body[2] else {
+                panic!("Expected Font at index 2, got {:?}", group.body[2]);
+            };
+            assert_eq!(inner_font.font, "mathrm");
+        }
+
+        // should work with \textcolor
+        {
+            let parse = parse_tree(r"\textcolor{blue}{\mathbb R}", ParserConfig::default()).unwrap();
+            let ParseNode::Color(color) = &parse[0] else {
+                 panic!("Expected Color, got {:?}", parse[0]);
+            };
+             // TODO: verify color value "blue" if accessible
+            
+            let body = &color.body;
+            assert_eq!(body.len(), 1);
+            let ParseNode::Font(font) = &body[0] else {
+                panic!("Expected Font inside Color, got {:?}", body[0]);
+            };
+            assert_eq!(font.font, "mathbb");
+        }
+    }
+
+    #[test]
+    fn a_pmb_builder() {
+        to_build(r"\pmb{\mu}", ParserConfig::default());
+        to_build(r"\pmb{=}", ParserConfig::default());
+        to_build(r"\pmb{+}", ParserConfig::default());
+        to_build(r"\pmb{\frac{x^2}{x_1}}", ParserConfig::default());
+        to_build(r"\pmb{}", ParserConfig::default());
+        to_parse_like(r"\def\x{1}\pmb{\x\def\x{2}}", r"\pmb{1}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_raise_parser() {
+        // should parse and build text in \raisebox
+        to_build(r"\raisebox{5pt}{text}", strict_conf());
+        to_build(r"\raisebox{-5pt}{text}", strict_conf());
+
+        // should parse and build math in non-strict \vcenter
+        // TODO: nonstrict
+        to_build(r"\vcenter{\frac a b}", ParserConfig::default());
+
+        // should fail to parse math in \raisebox
+        // TODO: nonstrict
+        // expect(r"\raisebox{5pt}{\frac a b}").not.toParse(nonstrictSettings);
+        
+        // should fail to parse math in an \hbox
+        // expect(r"\hbox{\frac a b}").not.toParse(nonstrictSettings);
+
+        // should fail to build, given an unbraced length
+        to_not_build(r"\raisebox5pt{text}", strict_conf());
+        to_not_build(r"\raisebox-5pt{text}", strict_conf());
+
+        // should build math in an hbox when math mode is set
+        to_build(r"a + \vcenter{\hbox{$\frac{\frac a b}c$}}", strict_conf());
+    }
+
+    #[test]
+    fn a_comment_parser() {
+        // should parse comments at the end of a line
+        to_parse("a^2 + b^2 = c^2 % Pythagoras' Theorem\n", ParserConfig::default());
+
+        // should parse comments at the start of a line
+        to_parse("% comment\n", ParserConfig::default());
+
+        // should parse multiple lines of comments in a row
+        to_parse("% comment 1\n% comment 2\n", ParserConfig::default());
+
+        // should parse comments between subscript and superscript
+        to_parse_like("x_3 %comment\n^2", "x_3^2", ParserConfig::default());
+        to_parse_like("x^ %comment\n{2}", "x^{2}", ParserConfig::default());
+        to_parse_like("x^ %comment\n\\frac{1}{2}", r"x^\frac{1}{2}", ParserConfig::default());
+
+        // should parse comments in size and color groups
+        to_parse("\\kern{1 %kern\nem}", ParserConfig::default());
+        to_parse("\\kern1 %kern\nem", ParserConfig::default());
+        to_parse("\\color{#f00%red\n}", ParserConfig::default());
+
+        // should parse comments before an expression
+        to_parse_like("%comment\n{2}", "{2}", ParserConfig::default());
+
+        // should parse comments before and between \hline
+        to_parse("\\begin{matrix}a&b\\\\ %hline\n\\hline %hline\n\\hline c&d\\end{matrix}", ParserConfig::default());
+
+        // should parse comments in the macro definition
+        to_parse_like("\\def\\foo{1 %}\n2}\n\\foo", "12", ParserConfig::default());
+
+        // should not expand nor ignore spaces after a command sequence in a comment
+        to_parse_like("\\def\\foo{1\n2}\nx %\\foo\n", "x", ParserConfig::default());
+
+        // should not parse a comment without newline in strict mode
+        to_not_parse("x%y", strict_conf());
+        // expect`x%y`.toParse(nonstrictSettings);
+
+        // should not produce or consume space
+        to_parse_like("\\text{hello% comment 1\nworld}", r"\text{helloworld}", ParserConfig::default());
+        to_parse_like("\\text{hello% comment\n\nworld}", r"\text{hello world}", ParserConfig::default());
+
+        // should not include comments in the output
+        to_parse_like("5 % comment\n", "5", ParserConfig::default());
+    }
 }

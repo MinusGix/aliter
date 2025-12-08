@@ -406,6 +406,19 @@ pub fn render_to_html_tree(expr: &str, conf: ParserConfig) -> Span<dom_tree::Htm
     }
 }
 
+#[cfg(feature = "mathml")]
+/// Generates and returns the katex build tree, with just MathML (no HTML).
+/// This is used for advanced use cases (like rendering to custom output).
+pub fn render_to_mathml_tree(expr: &str, conf: ParserConfig) -> crate::dom_tree::Span<crate::mathml_tree::MathmlNode> {
+    use tree::build_mathml_tree;
+
+    // TODO: error handling?
+    match parse_tree(expr, conf.clone()) {
+        Ok(tree) => build_mathml_tree(&tree, expr, conf),
+        Err(_err) => panic!("Error parsing tree: {:?}", _err), // match behavior of render_to_dom_tree for now
+    }
+}
+
 // TODO: websys render function
 
 #[cfg(test)]

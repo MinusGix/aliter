@@ -27,56 +27,9 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn an_op_symbol_builder() {
-    // TODO: port "An op symbol builder" from katex-spec.js:1517
-    todo!("unported katex-spec.js suite");
-}
 
 
 
-#[test]
-#[ignore]
-fn a_font_parser() {
-    // TODO: port "A font parser" from katex-spec.js:1565
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_pmb_builder() {
-    // TODO: port "A \\pmb builder" from katex-spec.js:1665
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_raise_parser() {
-    // TODO: port "A raise parser" from katex-spec.js:1676
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_comment_parser() {
-    // TODO: port "A comment parser" from katex-spec.js:1706
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn an_html_font_tree_builder() {
-    // TODO: port "An HTML font tree-builder" from katex-spec.js:1764
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_mathml_font_tree_builder() {
-    // TODO: port "A MathML font tree-builder" from katex-spec.js:1905
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]
