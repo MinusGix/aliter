@@ -10,7 +10,7 @@ mod tests {
         parse_node::{EqNoLoc, ParseNode},
         parse_tree,
         parser::{ParseError, ParserConfig, StrictMode},
-        style::TEXT_STYLE,
+        style::{StyleId, TEXT_STYLE},
         symbols::Atom,
         unit::Em,
         util::SourceLocation,
@@ -122,6 +122,11 @@ mod tests {
     fn to_parse_like(actual: &str, expected: &str, conf: ParserConfig) {
         // TODO: expand
         expect_equivalent(actual, expected, conf, TMode::Parse, false)
+    }
+
+    #[track_caller]
+    fn to_build_like(actual: &str, expected: &str, conf: ParserConfig) {
+        expect_equivalent(actual, expected, conf, TMode::Build, false)
     }
 
     #[track_caller]
@@ -487,6 +492,203 @@ mod tests {
     }
 
     #[test]
+    fn a_begingroup_endgroup_parser() {
+        // should not fail when properly closed
+        to_parse(r"\begingroup xy \endgroup", ParserConfig::default());
+
+        // should fail when it is mismatched
+        to_not_parse(r"\begingroup xy", ParserConfig::default());
+        to_not_parse(r"\begingroup xy }", ParserConfig::default());
+
+        // should produce a semi-simple ord group
+        let parse = parse_tree(r"\begingroup xy \endgroup", ParserConfig::default()).unwrap();
+        assert_eq!(parse.len(), 1);
+        let ParseNode::OrdGroup(ord) = &parse[0] else {
+            panic!("Expected OrdGroup, got {:?}", parse[0]);
+        };
+        assert!(!ord.body.is_empty());
+        assert_eq!(ord.semi_simple, Some(true));
+
+        // should not affect spacing in math mode
+        to_parse_like(
+            r"\begingroup x+ \endgroup y",
+            "x+y",
+            ParserConfig::default(),
+        );
+    }
+
+    #[test]
+    fn an_implicit_group_parser() {
+        // should not fail
+        to_parse(r"\Large x", ParserConfig::default());
+        to_parse(r"abc {abc \Large xyz} abc", ParserConfig::default());
+
+        // should produce a single sizing object
+        let parse = parse_tree(r"\Large abc", ParserConfig::default()).unwrap();
+        assert_eq!(parse.len(), 1);
+        let ParseNode::Styling(styling) = &parse[0] else {
+            panic!("Expected Styling node, got {:?}", parse[0]);
+        };
+        assert!(!styling.body.is_empty());
+
+        // should apply only after the function
+        let parse = parse_tree(r"a \Large abc", ParserConfig::default()).unwrap();
+        assert_eq!(parse.len(), 2);
+        let ParseNode::Styling(styling) = &parse[1] else {
+            panic!("Expected Styling node, got {:?}", parse[1]);
+        };
+        assert_eq!(styling.body.len(), 3);
+
+        // should stop at the ends of groups
+        let parse = parse_tree(r"a { b \Large c } d", ParserConfig::default()).unwrap();
+        let ParseNode::OrdGroup(group) = &parse[1] else {
+            panic!("Expected inner group, got {:?}", parse[1]);
+        };
+        let ParseNode::Styling(styling) = &group.body[1] else {
+            panic!("Expected Styling node, got {:?}", group.body[1]);
+        };
+        assert_eq!(styling.body.len(), 1);
+
+        // optional-group variants: just ensure they parse
+        to_parse(r"\sqrt[\small 3]{x}", ParserConfig::default());
+        to_parse(r"\sqrt[\color{red} 3]{x}", ParserConfig::default());
+        to_parse(r"\sqrt[\textstyle 3]{x}", ParserConfig::default());
+        to_parse(r"\sqrt[\tt 3]{x}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_function_parser() {
+        // should parse 0/1/2-argument functions when arguments are present
+        to_parse(r"\div", ParserConfig::default());
+        to_parse(r"\blue x", ParserConfig::default());
+        to_parse(r"\frac 1 2", ParserConfig::default());
+
+        // should reject missing arguments
+        to_not_parse(r"\blue", ParserConfig::default());
+        to_not_parse(r"\frac", ParserConfig::default());
+        to_not_parse(r"\frac 1", ParserConfig::default());
+
+        // should not parse function immediately followed by text
+        to_not_parse(r"\redx", ParserConfig::default());
+
+        // should parse when followed by numbers or spacing commands
+        to_parse(r"\frac12", ParserConfig::default());
+        to_parse(r"\;x", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_genfrac_builder() {
+        // should not fail for common fraction helpers
+        for expr in [
+            r"\frac{x}{y}",
+            r"\dfrac{x}{y}",
+            r"\tfrac{x}{y}",
+            r"\cfrac{x}{y}",
+            r"\genfrac ( ] {0.06em}{0}{a}{b+c}",
+            r"\genfrac ( ] {0.8pt}{}{a}{b+c}",
+            r"\genfrac {} {} {0.8pt}{}{a}{b+c}",
+            r"\genfrac [ {} {0.8pt}{}{a}{b+c}",
+        ] {
+            to_build(expr, ParserConfig::default());
+        }
+    }
+
+    #[test]
+    fn a_infix_builder() {
+        // should build infix fractions of various styles
+        for expr in [r"a \over b", r"a \atop b", r"a \choose b", r"a \brace b", r"a \brack b"] {
+            to_build(expr, ParserConfig::default());
+        }
+    }
+
+    #[test]
+    fn a_text_parser_extended() {
+        let text_expr = r"\text{a b}";
+        let no_brace_text = r"\text x";
+        let nested_text = r"\text{a {b} \blue{c} \textcolor{#fff}{x} \llap{x}}";
+        let space_text = r"\text{  a \  }";
+        let leading_space_text = r"\text {moo}";
+        let bad_text = r"\text{a b%}";
+        let bad_function = r"\text{\sqrt{x}}";
+        let math_token_after_text = r"\text{sin}^2";
+
+        // should parse basic forms
+        to_parse(text_expr, ParserConfig::default());
+        to_parse(no_brace_text, ParserConfig::default());
+        to_parse(nested_text, ParserConfig::default());
+        to_parse(space_text, ParserConfig::default());
+        to_parse(leading_space_text, ParserConfig::default());
+
+        // should produce text nodes with textord children
+        let parse = parse_tree(text_expr, ParserConfig::default()).unwrap();
+        let ParseNode::Text(text) = &parse[0] else {
+            panic!("Expected Text node, got {:?}", parse[0]);
+        };
+        assert!(!text.body.is_empty());
+        let first = &text.body[0];
+        if let ParseNode::TextOrd(ord) = first {
+            assert_eq!(ord.text, "a");
+        }
+
+        // should not parse malformed text or math-only functions inside text
+        to_not_parse(bad_text, ParserConfig::default());
+        to_not_parse(bad_function, ParserConfig::default());
+
+        // should allow math tokens after text blocks
+        to_parse(math_token_after_text, ParserConfig::default());
+    }
+
+    #[test]
+    fn an_over_brace_brack_parser() {
+        let simple_over = r"1 \over x";
+        let complex_over = r"1+2i \over 3+4i";
+        let brace_frac = r"a+b \brace c+d";
+        let brack_frac = r"a+b \brack c+d";
+
+        // should not fail
+        to_parse(simple_over, ParserConfig::default());
+        to_parse(complex_over, ParserConfig::default());
+        to_parse(brace_frac, ParserConfig::default());
+        to_parse(brack_frac, ParserConfig::default());
+
+        // should produce genfrac nodes with numer/denom present
+        for expr in [simple_over, complex_over, brace_frac, brack_frac] {
+            let parse = parse_tree(expr, ParserConfig::default()).unwrap();
+            let ParseNode::GenFrac(genfrac) = &parse[0] else {
+                panic!("Expected GenFrac, got {:?}", parse[0]);
+            };
+            // presence checks
+            let _ = &genfrac.numer;
+            let _ = &genfrac.denom;
+        }
+
+        // check delimiters for brace/brack
+        let parse = parse_tree(brace_frac, ParserConfig::default()).unwrap();
+        let ParseNode::GenFrac(genfrac) = &parse[0] else {
+            panic!("Expected GenFrac, got {:?}", parse[0]);
+        };
+        assert!(genfrac.left_delim.is_some());
+        assert!(genfrac.right_delim.is_some());
+
+        let parse = parse_tree(brack_frac, ParserConfig::default()).unwrap();
+        let ParseNode::GenFrac(genfrac) = &parse[0] else {
+            panic!("Expected GenFrac, got {:?}", parse[0]);
+        };
+        assert!(genfrac.left_delim.is_some());
+        assert!(genfrac.right_delim.is_some());
+
+        // empty numerator / denominator
+        let parse = parse_tree(r"\over x", ParserConfig::default()).unwrap();
+        assert!(matches!(parse[0], ParseNode::GenFrac(_)));
+        let parse = parse_tree(r"1 \over", ParserConfig::default()).unwrap();
+        assert!(matches!(parse[0], ParseNode::GenFrac(_)));
+
+        // should reject multiple infix fractions in one group
+        to_not_parse(r"1 \over 2 + 3 \over 4", ParserConfig::default());
+        to_not_parse(r"1 \over 2 \choose 3", ParserConfig::default());
+    }
+
+    #[test]
     fn a_supsub_left_right_nucleus_parser() {
         // should parse juxtaposition in superscripts/subscripts with left/right delimiters
         to_parse(r"x^\left(3\right)4", ParserConfig::default());
@@ -584,5 +786,250 @@ mod tests {
     fn a_sqrt_parser() {
         to_parse(r"\sqrt{2}", ParserConfig::default());
         to_parse(r"\sqrt[3]{x}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_binom_parser() {
+        to_parse(r"\binom{n}{k}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_frac_parser() {
+        to_parse(r"\frac{a}{b}", ParserConfig::default());
+        to_parse(r"\dfrac{1}{2}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_left_right_parser() {
+        to_parse(r"\left( x + y \right)", ParserConfig::default());
+        to_parse(r"\left[ \frac{1}{2} \right]", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_matrix_parser() {
+        to_parse(
+            r"\begin{matrix} a & b \\ c & d \end{matrix}",
+            ParserConfig::default(),
+        );
+        to_parse(
+            r"\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}",
+            ParserConfig::default(),
+        );
+        to_parse(
+            r"\begin{cases} a & b \\ c & d \end{cases}",
+            ParserConfig::default(),
+        );
+    }
+
+    #[test]
+    fn a_phantom_sizing_parser() {
+        to_parse(r"\hphantom{abc}", ParserConfig::default());
+        to_parse(r"\vphantom{xyz}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_rule_color_parser() {
+        to_parse(r"\color{green}{\rule{1em}{1em}}", ParserConfig::default());
+    }
+
+    #[test]
+    fn an_accent_parser() {
+        to_parse(r"\hat{x}", ParserConfig::default());
+        to_parse(r"\bar{y}", ParserConfig::default());
+        to_parse(r"\vec{v}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_sizing_parser() {
+        to_parse(r"{\Huge A}", ParserConfig::default());
+        to_parse(r"{\tiny B}", ParserConfig::default());
+    }
+
+    #[test]
+    fn an_arrow_parser() {
+        to_parse(r"\xleftarrow{abc}", ParserConfig::default());
+        to_parse(r"\xrightarrow{def}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_tie_parser() {
+        let math_tie = "a~b";
+        let text_tie = r"\text{a~ b}";
+
+        // should parse ties in math mode
+        to_parse(math_tie, ParserConfig::default());
+
+        // should parse ties in text mode
+        to_parse(text_tie, ParserConfig::default());
+
+        // should produce spacing in math mode
+        {
+            let parse = parse_tree(math_tie, ParserConfig::default()).unwrap();
+            let ParseNode::Spacing(_) = &parse[1] else {
+                panic!("Expected Spacing, got {:?}", parse[1]);
+            };
+        }
+
+        // should produce spacing in text mode
+        {
+            let parse = parse_tree(text_tie, ParserConfig::default()).unwrap();
+            let ParseNode::Text(text) = &parse[0] else {
+                panic!("Expected Text, got {:?}", parse[0]);
+            };
+            let body = &text.body;
+
+            let ParseNode::Spacing(_) = &body[1] else {
+                panic!("Expected Spacing, got {:?}", body[1]);
+            };
+        }
+
+        // should not contract with spaces in text mode
+        {
+            let parse = parse_tree(text_tie, ParserConfig::default()).unwrap();
+            let ParseNode::Text(text) = &parse[0] else {
+                panic!("Expected Text, got {:?}", parse[0]);
+            };
+            let body = &text.body;
+
+            let ParseNode::Spacing(_) = &body[2] else {
+                panic!("Expected Spacing, got {:?}", body[2]);
+            };
+        }
+    }
+
+    #[test]
+    fn an_overline_parser() {
+        let overline = r"\overline{x}";
+
+        // should not fail
+        to_parse(overline, ParserConfig::default());
+
+        // should produce an overline
+        {
+            let parse = parse_tree(overline, ParserConfig::default()).unwrap();
+            let ParseNode::Overline(_) = &parse[0] else {
+                panic!("Expected Overline, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn an_lap_parser() {
+        // should not fail on a text argument
+        to_parse(r"\rlap{\,/}{=}", ParserConfig::default());
+        to_parse(r"\mathrlap{\,/}{=}", ParserConfig::default());
+        to_parse(r"{=}\llap{/\,}", ParserConfig::default());
+        to_parse(r"{=}\mathllap{/\,}", ParserConfig::default());
+        to_parse(r"\sum_{\clap{ABCDEFG}}", ParserConfig::default());
+        to_parse(r"\sum_{\mathclap{ABCDEFG}}", ParserConfig::default());
+
+        // should not fail if math version is used
+        to_parse(r"\mathrlap{\frac{a}{b}}{=}", ParserConfig::default());
+        to_parse(r"{=}\mathllap{\frac{a}{b}}", ParserConfig::default());
+        to_parse(r"\sum_{\mathclap{\frac{a}{b}}}", ParserConfig::default());
+
+        // should fail on math if AMS version is used
+        to_not_parse(r"\rlap{\frac{a}{b}}{=}", ParserConfig::default());
+        to_not_parse(r"{=}\llap{\frac{a}{b}}", ParserConfig::default());
+        to_not_parse(r"\sum_{\clap{\frac{a}{b}}}", ParserConfig::default());
+
+        // should produce a lap
+        {
+            let parse = parse_tree(r"\mathrlap{\,/}", ParserConfig::default()).unwrap();
+            let ParseNode::Lap(_) = &parse[0] else {
+                panic!("Expected Lap, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn left_right_builder() {
+        // should build "..." like "..."
+        let cases = [
+            (r"\left\langle \right\rangle", r"\left< \right>"),
+            (r"\left\langle \right\rangle", "\\left\u{27e8} \\right\u{27e9}"),
+            (r"\left\lparen \right\rparen", r"\left( \right)"),
+        ];
+
+        for (actual, expected) in cases {
+            to_build_like(actual, expected, ParserConfig::default());
+        }
+    }
+
+    #[test]
+    fn a_tex_compliant_parser() {
+        // should work
+        to_parse(r"\frac 2 3", ParserConfig::default());
+
+        // should fail if there are not enough arguments
+        let missing_groups = [
+            r"\frac{x}",
+            r"\textcolor{#fff}",
+            r"\rule{1em}",
+            r"\llap",
+            r"\bigl",
+            r"\text",
+        ];
+
+        for expr in missing_groups {
+            to_not_parse(expr, ParserConfig::default());
+        }
+
+        // should fail when there are missing sup/subscripts
+        to_not_parse("x^", ParserConfig::default());
+        to_not_parse("x_", ParserConfig::default());
+
+        // should fail when arguments require arguments
+        to_not_parse(r"\frac \frac x y z", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_style_change_parser() {
+        // should not fail
+        to_parse(r"\displaystyle x", ParserConfig::default());
+        to_parse(r"\textstyle x", ParserConfig::default());
+        to_parse(r"\scriptstyle x", ParserConfig::default());
+        to_parse(r"\scriptscriptstyle x", ParserConfig::default());
+
+        // should produce the correct style
+        {
+            let parse = parse_tree(r"\displaystyle x", ParserConfig::default()).unwrap();
+            let ParseNode::Styling(styling) = &parse[0] else {
+                panic!("Expected Styling, got {:?}", parse[0]);
+            };
+            assert_eq!(styling.style, StyleId::D);
+        }
+        {
+            let parse = parse_tree(r"\scriptscriptstyle x", ParserConfig::default()).unwrap();
+            let ParseNode::Styling(styling) = &parse[0] else {
+                panic!("Expected Styling, got {:?}", parse[0]);
+            };
+            assert_eq!(styling.style, StyleId::SS);
+        }
+
+        // should only change the style within its group
+        {
+            let text = r"a b { c d \displaystyle e f } g h";
+            let parse = parse_tree(text, ParserConfig::default()).unwrap();
+
+            // parse[2] is the group { ... }
+            let ParseNode::OrdGroup(group) = &parse[2] else {
+                panic!("Expected OrdGroup, got {:?}", parse[2]);
+            };
+            
+            let display_node = &group.body[2];
+            let ParseNode::Styling(styling) = display_node else {
+                panic!("Expected Styling at index 2, got {:?}", display_node);
+            };
+            assert_eq!(styling.style, StyleId::D);
+            
+            let display_body = &styling.body;
+            assert_eq!(display_body.len(), 2); // e, f
+            // check text "e"
+            let ParseNode::TextOrd(ord) = &display_body[0] else {
+                 panic!("Expected TextOrd, got {:?}", display_body[0]);
+            };
+            assert_eq!(ord.text, "e");
+        }
     }
 }

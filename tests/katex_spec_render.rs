@@ -100,3 +100,57 @@ fn render_phantom() {
         "expected phantom span in {html}"
     );
 }
+
+#[test]
+fn render_sqrt_nested() {
+    let html = render("\\sqrt{1+\\sqrt{2}}");
+    assert!(
+        html.contains("sqrt") || html.contains("msqrt"),
+        "expected nested sqrt structure in {html}"
+    );
+}
+
+#[test]
+fn render_binom() {
+    let html = render("\\binom{n}{k}");
+    assert!(
+        html.contains("frac") || html.contains("mfrac") || html.contains("binom"),
+        "expected binomial-like structure in {html}"
+    );
+}
+
+#[test]
+fn render_left_right() {
+    let html = render("\\left[ x+y \\right]");
+    assert!(
+        html.contains("[") && html.contains("]"),
+        "expected bracket delimiters in {html}"
+    );
+}
+
+#[test]
+fn render_text_fonts() {
+    let html = render("\\textbf{bold} \\textit{it}");
+    assert!(
+        html.contains("text") || html.contains("mtext"),
+        "expected text font markup in {html}"
+    );
+}
+
+#[test]
+fn render_matrix() {
+    let html = render("\\begin{matrix} a & b \\\\ c & d \\end{matrix}");
+    assert!(
+        html.contains("matrix") || html.contains("<table") || html.contains("<mtable"),
+        "expected matrix-like structure in {html}"
+    );
+}
+
+#[test]
+fn render_arrows() {
+    let html = render("\\xleftarrow{abc} \\xrightarrow{def}");
+    assert!(
+        html.contains("arrow") || html.contains("<mo") || html.contains("rightarrow"),
+        "expected arrow structure in {html}"
+    );
+}
