@@ -3,8 +3,10 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
 
 use crate::{
+    build_common::make_span,
     environments::cd,
     expander::BreakToken,
+    html, mathml,
     lexer::Token,
     parse_node::{ParseNode, ParseNodeType},
     parser::Parser,
@@ -70,6 +72,102 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     symbols_op::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
     text::add_functions(&mut fns);
+
+    // Inline builders for nodes that don't have explicit functions
+    // Sup/Sub
+    let supsub = Arc::new(BuilderFunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::SupSub, 0),
+        #[cfg(feature = "html")]
+        html_builder: Some(Box::new(|group, options| {
+            let ParseNode::SupSub(sup_sub) = group else {
+                panic!();
+            };
+
+            let mut children = Vec::new();
+            if let Some(base) = sup_sub.base.as_deref() {
+                children.push(html::build_group(Some(base), options, None));
+            }
+            if let Some(sup) = sup_sub.sup.as_deref() {
+                let sup = html::build_group(Some(sup), options, None);
+                children.push(
+                    make_span(
+                        vec!["sup".to_string()],
+                        vec![sup],
+                        Some(options),
+                        crate::dom_tree::CssStyle::default(),
+                    )
+                    .into(),
+                );
+            }
+            if let Some(sub) = sup_sub.sub.as_deref() {
+                let sub = html::build_group(Some(sub), options, None);
+                children.push(
+                    make_span(
+                        vec!["sub".to_string()],
+                        vec![sub],
+                        Some(options),
+                        crate::dom_tree::CssStyle::default(),
+                    )
+                    .into(),
+                );
+            }
+
+            make_span(
+                vec!["mord".to_string(), "supexpr".to_string()],
+                children,
+                Some(options),
+                crate::dom_tree::CssStyle::default(),
+            )
+            .into()
+        })),
+        #[cfg(feature = "mathml")]
+        mathml_builder: Some(Box::new(|group, options| {
+            let ParseNode::SupSub(sup_sub) = group else {
+                panic!();
+            };
+
+            let mut children = Vec::new();
+            if let Some(base) = sup_sub.base.as_deref() {
+                children.push(mathml::build_group(Some(base), options));
+            }
+            if let Some(sup) = sup_sub.sup.as_deref() {
+                children.push(mathml::build_group(Some(sup), options));
+            }
+            if let Some(sub) = sup_sub.sub.as_deref() {
+                children.push(mathml::build_group(Some(sub), options));
+            }
+
+            mathml::make_row(children)
+        })),
+    });
+    fns.insert_builder(supsub);
+
+    // Color
+    let color_builder = Arc::new(BuilderFunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::Color, 0),
+        #[cfg(feature = "html")]
+        html_builder: Some(Box::new(|group, options| {
+            let ParseNode::Color(color) = group else { panic!() };
+            let mut opts = options.clone_alter();
+            opts = opts.with_color(color.color.clone());
+            let inner = html::build_expression(&color.body, &opts, html::RealGroup::True, (None, None));
+            make_span(
+                vec!["mord".to_string()],
+                inner,
+                Some(&opts),
+                crate::dom_tree::CssStyle::default(),
+            )
+            .into()
+        })),
+        #[cfg(feature = "mathml")]
+        mathml_builder: Some(Box::new(|group, options| {
+            let ParseNode::Color(color) = group else { panic!() };
+            let mut opts = options.clone_alter();
+            opts = opts.with_color(color.color.clone());
+            mathml::build_expression_row(&color.body, &opts, None)
+        })),
+    });
+    fns.insert_builder(color_builder);
 
     fns
 });

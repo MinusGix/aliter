@@ -26,7 +26,8 @@ fn options_with_font(group: &TextNode, options: Options) -> Options {
             "\\textit" => options.with_text_font_shape(FontShape::TextIt),
             "\\textup" => options.with_text_font_shape(FontShape::TextUp),
 
-            _ => unreachable!(),
+            // fallback: leave options unchanged
+            _ => options,
         }
     } else {
         options

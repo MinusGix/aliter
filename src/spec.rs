@@ -544,4 +544,45 @@ mod tests {
         to_parse(r"\overbrace{abc}^{note}", ParserConfig::default());
         to_parse(r"\underbrace{abc}_{note}", ParserConfig::default());
     }
+
+    #[test]
+    fn a_text_font_parser() {
+        to_parse(r"\textit{abc}", ParserConfig::default());
+        to_parse(r"\textbf{abc}", ParserConfig::default());
+        to_parse(r"\textsf{abc}", ParserConfig::default());
+        to_parse(r"\texttt{abc}", ParserConfig::default());
+        to_parse(r"\textnormal{abc}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_math_font_parser() {
+        to_parse(r"\mathbb{ABC}", ParserConfig::default());
+        to_parse(r"\mathfrak{ABC}", ParserConfig::default());
+        to_parse(r"\mathcal{ABC}", ParserConfig::default());
+        to_parse(r"\mathsf{ABC}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_spacing_parser() {
+        to_parse(r"a\,b\\;c\\!d", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_text_color_parser() {
+        to_parse(r"\color{red}{x}", ParserConfig::default());
+        to_parse(r"\textcolor{blue}{y}", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_delimiter_sizing_parser() {
+        to_parse(r"\left( \frac{1}{2} \right)", ParserConfig::default());
+        to_parse(r"\bigl( x \bigr)", ParserConfig::default());
+        to_parse(r"\Bigl( x \Bigr)", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_sqrt_parser() {
+        to_parse(r"\sqrt{2}", ParserConfig::default());
+        to_parse(r"\sqrt[3]{x}", ParserConfig::default());
+    }
 }

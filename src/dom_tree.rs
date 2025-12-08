@@ -183,7 +183,18 @@ impl Default for HtmlDomNode {
 }
 impl VirtualNode for HtmlDomNode {
     fn to_markup(&self) -> String {
-        todo!()
+        // Bare HtmlDomNode has no tag context; emit an empty span to expose classes/style.
+        let mut attrs = Attributes::new();
+        if let Some(style) = self.style.as_style_attr() {
+            attrs.insert("style".to_string(), style);
+        }
+        let mut dummy = Span {
+            node: self.clone(),
+            children: Vec::<EmptyNode>::new(),
+            attributes: attrs,
+            width: None,
+        };
+        dummy.to_markup()
     }
 }
 

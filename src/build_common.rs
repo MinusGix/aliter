@@ -349,8 +349,8 @@ pub(crate) fn try_combine_chars(chars: &mut Vec<HtmlNode>) {
 
         // Remove the next node
         chars.remove(i + 1);
-        // Counteract the removal by modifying our index
-        i -= 1;
+        // Counteract the removal by modifying our index without underflow
+        i = i.saturating_sub(1);
     }
 }
 

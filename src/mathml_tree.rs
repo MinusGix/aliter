@@ -74,7 +74,8 @@ impl MathNodeType {
 pub struct MathDomNode {}
 impl VirtualNode for MathDomNode {
     fn to_markup(&self) -> String {
-        todo!()
+        // Bare MathDomNode has no tag context; emit an empty <mrow/>.
+        "<mrow></mrow>".to_string()
     }
 }
 
