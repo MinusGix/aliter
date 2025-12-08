@@ -39,6 +39,7 @@ mod mclass;
 mod op;
 mod overline;
 mod ord_group;
+mod operatorname;
 mod underline;
 mod phantom;
 mod raise_box;
@@ -76,6 +77,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     mclass::add_functions(&mut fns);
     op::add_functions(&mut fns);
     overline::add_functions(&mut fns);
+    operatorname::add_functions(&mut fns);
     ord_group::add_functions(&mut fns);
     underline::add_functions(&mut fns);
     phantom::add_functions(&mut fns);

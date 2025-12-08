@@ -1222,6 +1222,11 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
     macros.insert_back_macro("\\kaBlue", text("\\textcolor{##314453}{#1}"));
     macros.insert_back_macro("\\kaGreen", text("\\textcolor{##71B307}{#1}"));
 
+    macros.insert_back_macro(
+        "\\operatorname",
+        text("\\@ifstar\\operatornamewithlimits\\operatorname@"),
+    );
+
     // Stub implementations for unported functions (parse-only placeholders)
     macros.insert_back_macro("\\rule", text("{#1}{#2}"));
 
