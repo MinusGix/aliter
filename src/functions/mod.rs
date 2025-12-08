@@ -34,6 +34,7 @@ mod kern;
 mod lap;
 mod mclass;
 mod op;
+mod overline;
 mod ord_group;
 mod raise_box;
 mod sizing;
@@ -66,6 +67,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     lap::add_functions(&mut fns);
     mclass::add_functions(&mut fns);
     op::add_functions(&mut fns);
+    overline::add_functions(&mut fns);
     ord_group::add_functions(&mut fns);
     raise_box::add_functions(&mut fns);
     sizing::add_functions(&mut fns);
