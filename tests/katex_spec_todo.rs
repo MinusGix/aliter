@@ -47,33 +47,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn tag_support() {
-    // TODO: port "\\tag support" from katex-spec.js:3635
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn leqno_and_fleqn_rendering_options() {
-    // TODO: port "leqno and fleqn rendering options" from katex-spec.js:3672
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn binrel_automatic_bin_rel_ord() {
-    // TODO: port "\\@binrel automatic bin/rel/ord" from katex-spec.js:3695
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_parser_taking_string_objects() {
-    // TODO: port "A parser taking String objects" from katex-spec.js:3712
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]

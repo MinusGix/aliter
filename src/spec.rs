@@ -2107,4 +2107,61 @@ mod tests {
         conf21.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
         to_parse_like(r"\foo\bar\bar", "(,)", conf21);
     }
+
+    #[test]
+    fn tag_support() {
+        let mut display_mode_conf = ParserConfig::default();
+        display_mode_conf.display_mode = true;
+
+        // should fail outside display mode
+        to_not_parse(r"\tag{hi}x+y", ParserConfig::default());
+
+        // should fail with multiple tags
+        to_not_parse(r"\tag{1}\tag{2}x+y", display_mode_conf.clone());
+
+        // should fail with multiple tags in one row
+        to_not_parse(r"\begin{align}\tag{1}x+y\tag{2}\end{align}", display_mode_conf.clone());
+
+        // should work with one tag per row
+        to_parse(r"\begin{align}\tag{1}x\\&+y\tag{2}\end{align}", display_mode_conf.clone());
+
+        // should work with \nonumber/\notag
+        to_parse(r"\begin{align}\tag{1}\nonumber x\\&+y\notag\end{align}", display_mode_conf.clone());
+
+        // should build
+        to_build(r"\tag{hi}x+y", display_mode_conf.clone());
+
+        // should ignore location of \tag
+        to_parse_like(r"\tag{hi}x+y", r"x+y\tag{hi}", display_mode_conf.clone());
+
+        // should handle \tag* like \tag
+        to_parse_like(r"\tag{hi}x+y", r"\tag*{({hi})}x+y", display_mode_conf.clone());
+    }
+
+    #[test]
+    fn binrel_automatic_bin_rel_ord() {
+        // should generate proper class
+        to_parse_like(r"L\@binrel+xR", r"L\mathbin xR", ParserConfig::default());
+        to_parse_like(r"L\@binrel=xR", r"L\mathrel xR", ParserConfig::default());
+        to_parse_like(r"L\@binrel xxR", r"L\mathord xR", ParserConfig::default());
+        to_parse_like(r"L\@binrel{+}{x}R", r"L\mathbin{x}R", ParserConfig::default());
+        to_parse_like(r"L\@binrel{=}{x}R", r"L\mathrel{x}R", ParserConfig::default());
+        to_parse_like(r"L\@binrel{x}{x}R", r"L\mathord{x}R", ParserConfig::default());
+
+        // should base on just first character in group
+        to_parse_like(r"L\@binrel{+x}xR", r"L\mathbin xR", ParserConfig::default());
+        to_parse_like(r"L\@binrel{=x}xR", r"L\mathrel xR", ParserConfig::default());
+        to_parse_like(r"L\@binrel{xx}xR", r"L\mathord xR", ParserConfig::default());
+    }
+
+    #[test]
+    fn a_parser_taking_string_objects() {
+        // should not fail on an empty String object
+        to_parse("", ParserConfig::default());
+
+        // should parse the same as a regular string
+        to_parse_like("xy", "xy", ParserConfig::default());
+        to_parse_like(r"\div", r"\div", ParserConfig::default());
+        to_parse_like(r"\frac 1 2", r"\frac 1 2", ParserConfig::default());
+    }
 }
