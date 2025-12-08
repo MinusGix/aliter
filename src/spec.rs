@@ -1831,10 +1831,10 @@ mod tests {
             assert_eq!(href_node.href, url);
 
             let parsed_url = parse_tree(&format!(r"\url{{{}}}", url), trust_conf.clone()).unwrap();
-            let ParseNode::Url(url_node) = &parsed_url[0] else {
-                panic!("Expected UrlNode, got {:?}", parsed_url[0]);
+            let ParseNode::Href(url_node) = &parsed_url[0] else {
+                panic!("Expected HrefNode, got {:?}", parsed_url[0]);
             };
-            assert_eq!(url_node.url, url);
+            assert_eq!(url_node.href, url);
         }
 
         // should allow balanced braces in url
@@ -1847,10 +1847,10 @@ mod tests {
             assert_eq!(href_node.href, url);
 
             let parsed_url = parse_tree(&format!(r"\url{{{}}}", url), trust_conf.clone()).unwrap();
-            let ParseNode::Url(url_node) = &parsed_url[0] else {
-                panic!("Expected UrlNode, got {:?}", parsed_url[0]);
+            let ParseNode::Href(url_node) = &parsed_url[0] else {
+                panic!("Expected HrefNode, got {:?}", parsed_url[0]);
             };
-            assert_eq!(url_node.url, url);
+            assert_eq!(url_node.href, url);
         }
 
         // should not allow unbalanced brace(s) in url
@@ -1876,10 +1876,10 @@ mod tests {
             assert_eq!(href_node.href, url);
 
             let parsed_url = parse_tree(&format!(r"\url{{{}}}", input), trust_conf.clone()).unwrap();
-            let ParseNode::Url(url_node) = &parsed_url[0] else {
-                panic!("Expected UrlNode, got {:?}", parsed_url[0]);
+            let ParseNode::Href(url_node) = &parsed_url[0] else {
+                panic!("Expected HrefNode, got {:?}", parsed_url[0]);
             };
-            assert_eq!(url_node.url, url);
+            assert_eq!(url_node.href, url);
         }
 
         // should allow comments after URLs

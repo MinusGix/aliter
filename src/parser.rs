@@ -33,7 +33,8 @@ static SIZE_GROUP_REGEX: Lazy<Regex> =
 static SIZE_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new("([-+]?) *(\\d+(?:\\.\\d*)?|\\.\\d+) *([a-z]{2})").unwrap());
 
-static URL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("(?g)\\\\([#$%&~_^{}])").unwrap());
+// Global replacement is handled by `replace_all`, so no `g` flag is needed.
+static URL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\\([#$%&~_^{}])").unwrap());
 
 static SYMBOL_VERB_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^\\\\verb[^a-zA-Z]").unwrap());
 
