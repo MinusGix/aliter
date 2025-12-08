@@ -1,10 +1,11 @@
 use crate::{
     build_common::{self, make_span, VListElem, VListKern, VListParam, VListShiftChild},
-    dom_tree::{CssStyle, HtmlNode, Span, SymbolNode, WithHtmlDomNode},
+    dom_tree::{CssStyle, HtmlNode, PathNode, Span, SvgChildNode, SvgNode, SymbolNode, WithHtmlDomNode},
     expander::Mode,
     font_metrics::{get_character_metrics, CharacterMetrics},
     font_metrics_data,
     style::{StyleId, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
+    svg_geometry,
     symbols,
     tree::ClassList,
     unit::make_em,
@@ -387,13 +388,30 @@ fn make_inner(ch: char, height: f64, options: &Options) -> VListElem<Span<HtmlNo
         s1[4]
     };
 
-    // let path = PathNode::new(
-    //     "inner".to_string(),
-    //     inner_path(ch, (1000.0 * height).round() as u64),
-    // );
-    // let svg_node = SvgNode
-
-    todo!()
+    let path = PathNode::new(
+        ch.to_string(),
+        Some(svg_geometry::inner_path(ch, (1000.0 * height).round() as u64)),
+    );
+    let svg_node = SvgNode::new(vec![SvgChildNode::Path(path)])
+        .with_attribute("width", make_em(width))
+        .with_attribute("height", make_em(height))
+        .with_attribute("viewBox", format!("0 0 {} {}", (1000.0 * width).round(), (1000.0 * height).round()))
+        .with_attribute("preserveAspectRatio", "xMinYMin slice");
+        
+    let span = make_span(
+        vec![], 
+        vec![HtmlNode::Svg(svg_node)], 
+        Some(options), 
+        CssStyle::default()
+    );
+    
+    VListElem {
+        elem: span,
+        margin_left: None,
+        margin_right: None,
+        wrapper_classes: ClassList::new(),
+        wrapper_style: CssStyle::default(),
+    }
 }
 
 const LAP_IN_EMS: f64 = 0.008;
@@ -672,14 +690,118 @@ const EM_PAD: f64 = 0.08;
 //     let svg = SvgNode::new();
 // }
 
-// struct SqrtImageInfo {
-//     pub span: SvgSpan,
-//     pub rule_width: f64,
-//     pub advance_width: f64,
-// }
-// fn make_sqrt_image(height: f64, options: &Options) -> SqrtImageInfo {
-//     todo!()
-// }
+fn sqrt_svg(
+    sqrt_name: &str,
+    height: f64,
+    view_box_height: f64,
+    extra_viniculum: f64,
+    options: &Options,
+) -> Span<HtmlNode> {
+    let path = svg_geometry::sqrt_path(sqrt_name, extra_viniculum, view_box_height);
+    let path_node = PathNode::new(sqrt_name.to_string(), Some(path));
+
+    let svg = SvgNode::new(vec![SvgChildNode::Path(path_node)])
+        .with_attribute("width", "400em")
+        .with_attribute("height", make_em(height))
+        .with_attribute("viewBox", format!("0 0 400000 {}", view_box_height))
+        .with_attribute("preserveAspectRatio", "xMinYMin slice");
+
+    make_span(
+        vec!["hide-tail".to_string()],
+        vec![HtmlNode::Svg(svg)],
+        Some(options),
+        CssStyle::default(),
+    )
+}
+
+pub struct SqrtImageInfo {
+    pub span: Span<HtmlNode>,
+    pub rule_width: f64,
+    pub advance_width: f64,
+}
+
+pub(crate) fn make_sqrt_image(height: f64, options: &Options) -> SqrtImageInfo {
+    let new_options = options.having_base_sizing();
+    let delim = traverse_sequence(
+        "\\surd",
+        height * new_options.size_multiplier(),
+        &STACK_LARGE_DELIMITER_SEQUENCE,
+        &new_options,
+    );
+
+    let mut size_multiplier = new_options.size_multiplier();
+    let extra_viniculum = (options.min_rule_thickness.0
+        - options.font_metrics().sqrt_rule_thickness)
+        .max(0.0);
+
+    let mut span;
+    let span_height;
+    let tex_height;
+    let view_box_height;
+    let advance_width;
+
+    match delim {
+        Delimiter::Small(_) => {
+            view_box_height = 1000.0 + 1000.0 * extra_viniculum + VB_PAD;
+            if height < 1.0 {
+                size_multiplier = 1.0;
+            } else if height < 1.4 {
+                size_multiplier = 0.7;
+            }
+            span_height = (1.0 + extra_viniculum + EM_PAD) / size_multiplier;
+            tex_height = (1.0 + extra_viniculum) / size_multiplier;
+            span = sqrt_svg(
+                "sqrtMain",
+                span_height,
+                view_box_height,
+                extra_viniculum,
+                options,
+            );
+            span.node.style.min_width = Some("0.853em".into());
+            advance_width = 0.833 / size_multiplier;
+        }
+        Delimiter::Large(size) => {
+            let size_idx = size as usize;
+            view_box_height = (1000.0 + VB_PAD) * SIZE_TO_MAX_HEIGHT[size_idx];
+            tex_height = (SIZE_TO_MAX_HEIGHT[size_idx] + extra_viniculum) / size_multiplier;
+            span_height =
+                (SIZE_TO_MAX_HEIGHT[size_idx] + extra_viniculum + EM_PAD) / size_multiplier;
+            span = sqrt_svg(
+                &format!("sqrtSize{}", size),
+                span_height,
+                view_box_height,
+                extra_viniculum,
+                options,
+            );
+            span.node.style.min_width = Some("1.02em".into());
+            advance_width = 1.0 / size_multiplier;
+        }
+        Delimiter::Stack => {
+            span_height = height + extra_viniculum + EM_PAD;
+            tex_height = height + extra_viniculum;
+            view_box_height = (1000.0 * height + extra_viniculum).floor() + VB_PAD;
+            span = sqrt_svg(
+                "sqrtTall",
+                span_height,
+                view_box_height,
+                extra_viniculum,
+                options,
+            );
+            span.node.style.min_width = Some("0.742em".into());
+            advance_width = 1.056;
+        }
+    }
+
+    span.node.height = tex_height;
+    span.node.style.height = Some(make_em(span_height).into());
+
+    SqrtImageInfo {
+        span,
+        rule_width: (options.font_metrics().sqrt_rule_thickness + extra_viniculum)
+            * size_multiplier,
+        advance_width,
+    }
+}
 
 pub(crate) fn left_right_delim(
     delim: &str,
