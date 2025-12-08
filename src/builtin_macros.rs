@@ -488,9 +488,6 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
         text("\\nobreak\\mskip2mu\\mathpunct{}\\mathchoice{\\mkern-3mu}{\\mkern-3mu}{}{}{:}\\mskip6mu\\relax"),
     );
 
-    // \newcommand{\boxed}[1]{\fbox{\m@th$\displaystyle#1$}}
-    macros.insert_back_macro("\\boxed", text("\\fbox{$\\displaystyle{#1}$}"));
-
     // \def\iff{\DOTSB\;\Longleftrightarrow\;}
     // \def\implies{\DOTSB\;\Longrightarrow\;}
     // \def\impliedby{\DOTSB\;\Longleftarrow\;}

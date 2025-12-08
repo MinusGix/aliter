@@ -28,6 +28,7 @@ pub mod cr;
 pub mod def;
 mod font;
 pub mod genfrac;
+mod enclose;
 mod horiz_brace;
 pub mod href;
 mod htmlmathml;
@@ -64,6 +65,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     def::add_functions(&mut fns);
     font::add_functions(&mut fns);
     genfrac::add_functions(&mut fns);
+    enclose::add_functions(&mut fns);
     horiz_brace::add_functions(&mut fns);
     htmlmathml::add_functions(&mut fns);
     href::add_functions(&mut fns);
