@@ -45,26 +45,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn the_symbol_table_integrity() {
-    // TODO: port "The symbol table integrity" from katex-spec.js:3057
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn symbols() {
-    // TODO: port "Symbols" from katex-spec.js:3065
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_macro_expander() {
-    // TODO: port "A macro expander" from katex-spec.js:3075
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]

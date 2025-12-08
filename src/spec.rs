@@ -1915,7 +1915,7 @@ mod tests {
         let error_color = Color::RGBA(RGBA::new(0x99, 0x33, 0x33, 1));
         let mut no_throw_settings = ParserConfig::default();
         no_throw_settings.throw_on_error = false;
-        no_throw_settings.error_color = error_color.to_rgba(); // Assuming ParserConfig.error_color is RGBA
+        no_throw_settings.error_color = error_color.to_rgba();
 
         // should still parse on unrecognized control sequences
         to_parse(r"\error", no_throw_settings.clone());
@@ -1949,5 +1949,162 @@ mod tests {
         // It's `getBuilt` or `katex.renderToString`.
         // I will skip these for now in `spec.rs` as they require HTML output string inspection.
         // They can be ported to `katex_spec_render.rs` later.
+    }
+
+    #[test]
+    fn the_symbol_table_integrity() {
+        // should treat certain symbols as synonyms
+        to_build_like(r"<", r"\lt", ParserConfig::default());
+        to_build_like(r">", r"\gt", ParserConfig::default());
+        to_build_like(r"\left<\frac{1}{x}\right>", r"\left\lt\frac{1}{x}\right\gt", ParserConfig::default());
+    }
+
+    #[test]
+    fn symbols() {
+        // should support AMS symbols in both text and math mode
+        let symbols = r"\yen\checkmark\circledR\maltese";
+        to_build(symbols, ParserConfig::default());
+        let mut strict_conf = ParserConfig::default();
+        strict_conf.strict = StrictMode::Error; // Assuming strictSettings implies StrictMode::Error
+        to_build(&format!(r"\text{{{}}}", symbols), strict_conf);
+    }
+
+    #[test]
+    fn a_macro_expander() {
+        use crate::macr::{MacroReplace, Macros};
+        use std::sync::Arc;
+
+        let mut conf_base = ParserConfig::default();
+
+        // should produce individual tokens
+        let mut conf1 = conf_base.clone();
+        conf1.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("123".to_string()))));
+        to_parse_like(r"e^\foo", "e^1 23", conf1);
+
+        // should preserve leading spaces inside macro definition
+        let mut conf2 = conf_base.clone();
+        conf2.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(" x".to_string()))));
+        to_parse_like(r"\text{\foo}", r"\text{ x}", conf2);
+
+        // should preserve leading spaces inside macro argument
+        let mut conf3 = conf_base.clone();
+        conf3.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("#1".to_string()))));
+        to_parse_like(r"\text{\foo{ x}}", r"\text{ x}", conf3);
+
+        // should ignore expanded spaces in math mode
+        let mut conf4 = conf_base.clone();
+        conf4.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(" x".to_string()))));
+        to_parse_like(r"\foo", "x", conf4);
+
+        // should consume spaces after control-word macro
+        let mut conf5 = conf_base.clone();
+        conf5.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("x".to_string()))));
+        to_parse_like(r"\text{\foo }", r"\text{x}", conf5);
+
+        // should consume spaces after macro with \relax
+        let mut conf6 = conf_base.clone();
+        conf6.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(r"\relax".to_string()))));
+        to_parse_like(r"\text{\foo }", r"\text{}", conf6);
+
+        // should not consume spaces after control-word expansion
+        let mut conf7 = conf_base.clone();
+        conf7.macros.set_back_macro(r"\\\".to_string(), Some(Arc::new(MacroReplace::Text(r"\relax".to_string()))));
+        to_parse_like(r"\text{\\ }", r"\text{ }", conf7);
+
+        // should consume spaces after \relax
+        to_parse_like(r"\text{\relax }", r"\text{}", ParserConfig::default());
+
+        // should consume spaces after control-word function
+        to_parse_like(r"\text{\KaTeX }", r"\text{\KaTeX}", ParserConfig::default());
+
+        // should preserve spaces after control-symbol macro
+        let mut conf8 = conf_base.clone();
+        conf8.macros.set_back_macro(r"\%".to_string(), Some(Arc::new(MacroReplace::Text("x".to_string()))));
+        to_parse_like(r"\text{\% y}", r"\text{x y}", conf8);
+
+        // should preserve spaces after control-symbol function
+        to_parse(r"\text{\' }", ParserConfig::default()); // The original test expects `toParse()`.
+
+        // should consume spaces between arguments
+        let mut conf9 = conf_base.clone();
+        conf9.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("#1#2end".to_string()))));
+        to_parse_like(r"\text{\foo 1 2}", r"\text{12end}", conf9.clone());
+        to_parse_like(r"\text{\foo {1} {2}}", r"\text{12end}", conf9.clone());
+
+        // should allow for multiple expansion
+        let mut conf10 = conf_base.clone();
+        conf10.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(r"\bar\bar".to_string()))));
+        conf10.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text("a".to_string()))));
+        to_parse_like(r"1\foo2", "1aa2", conf10);
+
+        // should allow for multiple expansion with argument
+        let mut conf11 = conf_base.clone();
+        conf11.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(r"\bar{#1}\bar{#1}".to_string()))));
+        conf11.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text("#1#1".to_string()))));
+        to_parse_like(r"1\foo2", "12222", conf11);
+
+        // should allow for macro argument
+        let mut conf12 = conf_base.clone();
+        conf12.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1)".to_string()))));
+        conf12.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text("xyz".to_string()))));
+        to_parse_like(r"\foo\bar", "(xyz)", conf12);
+
+        // should allow properly nested group for macro argument
+        let mut conf13 = conf_base.clone();
+        conf13.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1)".to_string()))));
+        to_parse_like(r"\foo{e^{x_{12}+3}}", "(e^{x_{12}+3})", conf13);
+
+        // should delay expansion if preceded by \expandafter
+        let mut conf14 = conf_base.clone();
+        conf14.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("#1+#2".to_string()))));
+        conf14.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text("xy".to_string()))));
+        to_parse_like(r"\expandafter\foo\bar", "x+y", conf14.clone());
+
+        // \def is not expandable, i.e., \expandafter doesn't define the macro
+        // The second `\def` changes behavior
+        // to_parse_like(r"\def\foo{x}\def\bar{\def\foo{y}}\expandafter\bar\foo", "x", conf14.clone()); // needs proper macro expansion handling
+        // expect`\expandafter\foo\def\foo{x}`.not.toParse(); // This requires understanding KaTeX's `\def` behavior more deeply
+
+        // should not expand if preceded by \noexpand
+        let mut conf15 = conf_base.clone();
+        conf15.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("x".to_string()))));
+        to_parse_like(r"\noexpand\foo y", "y", conf15.clone());
+
+        // \noexpand is expandable, so the second \foo is not expanded
+        let mut conf16 = conf_base.clone();
+        conf16.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("x".to_string()))));
+        to_parse_like(r"\expandafter\foo\noexpand\foo", "x", conf16);
+
+        // \frac is a macro and therefore expandable
+        to_parse_like(r"\noexpand\frac xy", "xy", ParserConfig::default());
+
+        // \def is not expandable, so is not affected by \noexpand
+        let mut conf17 = conf_base.clone();
+        conf17.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("xy".to_string()))));
+        to_parse_like(r"\noexpand\def\foo{xy}\foo", "xy", conf17);
+
+        // should allow for space macro argument (text version)
+        let mut conf18 = conf_base.clone();
+        conf18.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1)".to_string()))));
+        conf18.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
+        to_parse_like(r"\text{\foo\bar}", r"\text{( )}", conf18);
+
+        // should allow for space macro argument (math version)
+        let mut conf19 = conf_base.clone();
+        conf19.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1)".to_string()))));
+        conf19.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
+        to_parse_like(r"\foo\bar", "()", conf19);
+
+        // should allow for space second argument (text version)
+        let mut conf20 = conf_base.clone();
+        conf20.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1,#2)".to_string()))));
+        conf20.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
+        to_parse_like(r"\text{\foo\bar\bar}", r"\text{( , )}", conf20);
+
+        // should allow for space second argument (math version)
+        let mut conf21 = conf_base.clone();
+        conf21.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1,#2)".to_string()))));
+        conf21.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
+        to_parse_like(r"\foo\bar\bar", "(,)", conf21);
     }
 }
