@@ -2102,11 +2102,241 @@ mod tests {
         to_parse_like(r"\text{\foo\bar\bar}", r"\text{( , )}", conf20);
 
         // should allow for space second argument (math version)
-        let mut conf21 = conf_base.clone();
-        conf21.macros.set_back_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("(#1,#2)".to_string()))));
-        conf21.macros.set_back_macro("\\bar".to_string(), Some(Arc::new(MacroReplace::Text(" ".to_string()))));
-        to_parse_like(r"\foo\bar\bar", "(,)", conf21);
+    #[test]
+    fn unicode_accents() {
+        let mut nonstrict_conf = ParserConfig::default();
+        nonstrict_conf.strict = StrictMode::Warn;
+
+        // should parse Latin-1 letters in math mode
+        to_parse_like(
+            "ÀÁÂÃÄÅÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåèéêëìíîïñòóôõöùúûüýÿ",
+            r#"\grave A\acute A\hat A\tilde A\ddot A\mathring A"#
+                .to_owned()
+                + r#"\grave E\acute E\hat E\ddot E"#
+                + r#"\grave I\acute I\hat I\ddot I"#
+                + r#"\tilde N"#
+                + r#"\grave O\acute O\hat O\tilde O\ddot O"#
+                + r#"\grave U\acute U\hat U\ddot U"#
+                + r#"\acute Y"#
+                + r#"\grave a\acute a\hat a\tilde a\ddot a\mathring a"#
+                + r#"\grave e\acute e\hat e\ddot e"#
+                + r#"\grave ı\acute ı\hat ı\ddot ı"#
+                + r#"\tilde n"#
+                + r#"\grave o\acute o\hat o\tilde o\ddot o"#
+                + r#"\grave u\acute u\hat u\ddot u"#
+                + r#"\acute y\ddot y"#,
+            nonstrict_conf.clone(),
+        );
+
+        let mut strict_conf = ParserConfig::default();
+        strict_conf.strict = StrictMode::Error;
+
+        // should parse Latin-1 letters in text mode
+        to_parse_like(
+            r"\text{ÀÁÂÃÄÅÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåèéêëìíîïñòóôõöùúûüýÿ}",
+            r#"\text{\`A\'A\^A\~A\"A\r A"#
+                .to_owned()
+                + r#"\`E\'E\^E\"E"#
+                + r#"\`I\'I\^I\"I"#
+                + r#"\~N"#
+                + r#"\`O\'O\^O\~O\"O"#
+                + r#"\`U\'U\^U\"U"#
+                + r#"\'Y"#
+                + r#"\`a\'a\^a\~a\"a\r a"#
+                + r#"\`e\'e\^e\"e"#
+                + r#"\`\i\'\i\^\i\"\i"#
+                + r#"\~n"#
+                + r#"\`o\'o\^o\~o\"o"#
+                + r#"\`u\'u\^u\"u"#
+                + r#"\'y\"y}"#,
+            strict_conf.clone(),
+        );
+
+        // should support \aa in text mode
+        to_parse_like(r"\text{\aa\AA}", r"\text{\r a\r A}", strict_conf.clone());
+        to_not_parse(r"\aa", strict_conf.clone());
+        to_not_parse(r"\Aa", strict_conf.clone());
+
+        // should parse combining characters
+        to_parse_like(&format!("A{}{}C{}{}", "\u{0301}", "\u{0301}"), r"Á\acute C", nonstrict_conf.clone());
+        // r"\text{A\u{0301}C\u{0301}}"
+        to_parse_like(&format!(r"\text{{A{}{}C{}{}}}", "\u{0301}", "\u{0301}"), r"\text{Á\'C}", strict_conf.clone());
+
+        // should parse multi-accented characters
+        to_parse(r"ấā́ắ\text{ấā́ắ}", nonstrict_conf.clone());
+
+        // should parse accented i's and j's
+        to_parse_like("íȷ́", r"\acute ı\acute ȷ", nonstrict_conf.clone());
     }
+
+    #[test]
+    fn unicode() {
+        let strict_conf = ParserConfig::default();
+
+        // should parse negated relations
+        to_parse(r"∉∤∦≁≆≠≨≩≮≯≰≱⊀⊁⊈⊉⊊⊋⊬⊭⊮⊯⋠⋡⋦⋧⋨⋩⋬⋭⪇⪈⪉⪊⪵⪶⪹⪺⫋⫌", strict_conf.clone());
+
+        // should build relations
+        to_build(r"∈∋∝∼∽≂≃≅≈≊≍≎≏≐≑≒≓≖≗≜≡≤≥≦≧≪≫≬≳≷≺≻≼≽≾≿∴∵∣≔≕⩴⋘⋙⟂⊨∌", strict_conf.clone());
+
+        // should parse relations
+        to_parse(r"⊶⊷", ParserConfig::default());
+
+        // should build big operators
+        to_build(r"∏∐∑∫∬∭∮⋀⋁⋂⋃⨀⨁⨂⨄⨆", strict_conf.clone());
+
+        // should build more relations
+        to_build(r"⊂⊃⊆⊇⊏⊐⊑⊒⊢⊣⊩⊪⊸⋈⋍⋐⋑⋔⋛⋞⋟⌢⌣⩾⪆⪌⪕⪖⪯⪰⪷⪸⫅⫆≘≙≚≛≝≞≟≲⩽⪅≶⋚⪋", strict_conf.clone());
+
+        // should parse symbols
+        to_build("£¥ℂℍℑℎℓℕ℘ℙℚℜℝℤℲℵðℶℷℸ⅁∀∁∂∃∇∞∠∡∢♠♡♢♣♭♮♯✓°¬‼⋮·©", strict_conf.clone());
+        to_build(&format!(r"\text{{£¥ℂℍℎ©®{}{}}}", "\u{FE0F}"), strict_conf.clone());
+
+        // should build Greek capital letters
+        to_build(&format!("{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+            "\u{0391}", "\u{0392}", "\u{0395}", "\u{0396}", "\u{0397}", "\u{0399}", "\u{039A}",
+            "\u{039C}", "\u{039D}", "\u{039F}", "\u{03A1}", "\u{03A4}", "\u{03A7}", "\u{03DD}"
+        ), strict_conf.clone());
+
+        // should build arrows
+        // "←↑→↓↔↕↖↗↘↙↚↛↞↠↢↣↦↩↪↫↬↭↮↰↱↶↷↼↽↾↾\u{21FF}\u{21FE}\u{21FD}\u{21FC}⇀⇁⇂⇃⇄⇆⇇⇈⇉"
+        to_build(&format!("←↑→↓↔↕↖↗↘↙↚↛↞↠↢↣↦↩↪↫↬↭↮↰↱↶↷↼↽↾↾{}{}{}{}⇀⇁⇂⇃⇄⇆⇇⇈⇉",
+            "\u{21FF}", "\u{21FE}", "\u{21FD}", "\u{21FC}"
+        ), strict_conf.clone());
+
+        // should build more arrows
+        to_build(r"⇊⇋⇌⇍⇎⇏⇐⇑⇒⇓⇔⇕⇚⇛⇝⟵⟶⟷⟸⟹⟺⟼", strict_conf.clone());
+
+        // should build binary operators
+        to_build("±×÷∓∔∧∨∩∪≀⊎⊓⊔⊕⊖⊗⊘⊙⊚⊛⊝◯⊞⊟⊠⊡⊺⊻⊼⋇⋉⋊⋋⋌⋎⋏⋒⋓⩞\u{22C5}\u{2218}\u{2216}\u{2219}", strict_conf.clone());
+
+        // should build common ords
+        to_build(r"§¶£¥∇∞⋅∠∡∢♠♡♢♣♭♮♯✓…⋮⋯⋱! ‼ ⦵", strict_conf.clone());
+
+        // should build delimiters
+        to_build(&format!(r"\left{}{}\frac{{a}}{{b}}\right{}{}", "\u{230A}", "\u{230B}"), ParserConfig::default());
+        to_build(&format!(r"\left{}{}\frac{{a}}{{b}}\right{}{}", "\u{2308}", "\u{2308}"), ParserConfig::default());
+        to_build(&format!(r"\left{}{}\frac{{a}}{{b}}\right{}{}", "\u{27ee}", "\u{27ef}"), ParserConfig::default());
+        to_build(&format!(r"\left{}{}\frac{{a}}{{b}}\right{}{}", "\u{27e8}", "\u{27e9}"), ParserConfig::default());
+        to_build(&format!(r"\left{}{}\frac{{a}}{{b}}\right{}{}", "\u{23b0}", "\u{23b1}"), ParserConfig::default());
+        to_build(r"┌x┐ └x┘", ParserConfig::default());
+        to_build(&format!("{}x{} {}x{}", "\u{231C}", "\u{231D}", "\u{231E}", "\u{231F}"), ParserConfig::default());
+        to_build(&format!("{}x{}", "\u{27E6}", "\u{27E7}"), ParserConfig::default());
+        to_build(r"\llbracket \rrbracket", ParserConfig::default());
+        to_build(r"\lBrace \rBrace", ParserConfig::default());
+
+        // should build some surrogate pairs
+        let mut wide_char_str = String::new();
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDC00]).unwrap()); // bold A
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDC68]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDD04]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDD38]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDC9C]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDDA0]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDDD4]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDE08]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDE70]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDFCE]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDFE2]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDFEC]).unwrap());
+        wide_char_str.push_str(&String::from_utf16(&[0xD835, 0xDFF6]).unwrap());
+        to_build(&wide_char_str, strict_conf.clone());
+
+        let mut wide_char_text = r"\text{".to_string();
+        wide_char_text.push_str(&wide_char_str); // reuse
+        wide_char_text.push_str("}");
+        to_build(&wide_char_text, strict_conf.clone());
+    }
+
+    #[test]
+    fn the_maxexpand_setting() {
+        use crate::macr::{MacroReplace, Macros};
+        use std::sync::Arc;
+        let mut conf_base = ParserConfig::default();
+
+        // should prevent expansion
+        let mut conf1 = conf_base.clone();
+        conf1.macros.set_g_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("1".to_string()))));
+        to_parse(r"\foo", conf1.clone());
+
+        let mut conf2 = conf_base.clone();
+        conf2.macros.set_g_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("1".to_string()))));
+        conf2.max_expand = Some(1);
+        to_parse(r"\foo", conf2);
+
+        let mut conf3 = conf_base.clone();
+        conf3.macros.set_g_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text("1".to_string()))));
+        conf3.max_expand = Some(0);
+        to_not_parse(r"\foo", conf3);
+
+        // should prevent infinite loops
+        let mut conf4 = conf_base.clone();
+        conf4.macros.set_g_macro("\\foo".to_string(), Some(Arc::new(MacroReplace::Text(r"\foo".to_string()))));
+        conf4.max_expand = Some(10);
+        to_not_parse(r"\foo", conf4);
+    }
+
+    #[test]
+    fn the_mathchoice_function() {
+        let cmd = r"\sum_{k = 0}^{\infty} x^k";
+
+        to_build_like(&format!(r"\displaystyle\mathchoice{}{}{}{}{}", cmd), &format!(r"\displaystyle{}", cmd), ParserConfig::default());
+        to_build_like(&format!(r"\mathchoice{}{}{}{}{}", cmd), cmd, ParserConfig::default());
+        to_build_like(&format!(r"x_{{}}\mathchoice{}{}{}{}{}", cmd), &format!(r"x_{{{}}}", cmd), ParserConfig::default());
+        to_build_like(&format!(r"x_{{y_{{}}}}\mathchoice{}{}{}{}{}", cmd), &format!(r"x_{{y_{{{}}}}}", cmd), ParserConfig::default());
+    }
+
+    #[test]
+    fn newlines_via_and_newline() {
+        to_build_like(r"hello \\ world", r"hello \newline world", ParserConfig::default());
+        to_build(r"hello \newline[w]orld", ParserConfig::default());
+        to_not_build(r"hello \cr world", ParserConfig::default());
+    }
+
+    #[test]
+    fn symbols_2() {
+        let strict_conf = ParserConfig::default();
+        to_build(r"\text{\i\j}", strict_conf.clone());
+        to_build(r"A\;B\,C\nobreakspace \text{A\;B\,C\nobreakspace}", strict_conf.clone());
+        to_build(r"\minuso", strict_conf.clone());
+        to_build_like(r"\text{\ae\AE\oe\OE\o\O\ss}", r"\text{æÆœŒøØß}", strict_conf.clone());
+    }
+
+    #[test]
+    fn strict_setting() {
+        let mut nonstrict_conf = ParserConfig::default();
+        nonstrict_conf.strict = StrictMode::Warn;
+
+        let mut strict_error_conf = ParserConfig::default();
+        strict_error_conf.strict = StrictMode::Error;
+
+        to_parse(r"é", nonstrict_conf.clone());
+        to_parse(r"試", nonstrict_conf.clone());
+
+        to_not_parse(r"é", strict_error_conf.clone());
+        to_not_parse(r"試", strict_error_conf.clone());
+
+        to_parse(r"é", ParserConfig::default());
+        to_parse(r"試", ParserConfig::default());
+
+        to_parse(r"\text{é試}", nonstrict_conf.clone());
+        to_parse(r"\text{é試}", strict_error_conf.clone());
+        to_parse(r"\text{é試}", ParserConfig::default());
+
+        let mut display_conf = ParserConfig::default();
+        display_conf.display_mode = true;
+        to_parse(r"x\\y", display_conf);
+
+        let mut non_display_conf = ParserConfig::default();
+        non_display_conf.display_mode = false;
+        to_parse(r"x\\y", non_display_conf);
+    }
+
+    #[test]
+    fn relax() {
+        to_not_parse(r"\kern2\relax em", ParserConfig::default());
+    }
+}
 
     #[test]
     fn tag_support() {
