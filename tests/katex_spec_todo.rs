@@ -37,33 +37,7 @@ fn a_non_braced_kern_parser() {
 
 
 
-#[test]
-#[ignore]
-fn an_extensible_arrow_parser() {
-    // TODO: port "An extensible arrow parser" from katex-spec.js:2320
-    todo!("unported katex-spec.js suite");
-}
 
-#[test]
-#[ignore]
-fn an_extensible_arrow_builder() {
-    // TODO: port "An extensible arrow builder" from katex-spec.js:2342
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_horizontal_brace_parser() {
-    // TODO: port "A horizontal brace parser" from katex-spec.js:2361
-    todo!("unported katex-spec.js suite");
-}
-
-#[test]
-#[ignore]
-fn a_horizontal_brace_builder() {
-    // TODO: port "A horizontal brace builder" from katex-spec.js:2384
-    todo!("unported katex-spec.js suite");
-}
 
 #[test]
 #[ignore]

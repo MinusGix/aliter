@@ -1304,4 +1304,80 @@ mod tests {
 
         // Skipping class checks for now.
     }
+
+    #[test]
+    fn an_extensible_arrow_parser() {
+        // should not fail
+        to_parse(r"\xrightarrow{x}", ParserConfig::default());
+        to_parse(r"\xrightarrow{x^2}", ParserConfig::default());
+        to_parse(r"\xrightarrow{x}^2", ParserConfig::default());
+        to_parse(r"\xrightarrow x", ParserConfig::default());
+        to_parse(r"\xrightarrow[under]{over}", ParserConfig::default());
+
+        // should produce xArrow
+        {
+            let parse = parse_tree(r"\xrightarrow x", ParserConfig::default()).unwrap();
+            let ParseNode::XArrow(_) = &parse[0] else {
+                panic!("Expected XArrow, got {:?}", parse[0]);
+            };
+        }
+
+        // should be grouped more tightly than supsubs
+        {
+            let parse = parse_tree(r"\xrightarrow x^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(_) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn an_extensible_arrow_builder() {
+        // should not fail
+        to_build(r"\xrightarrow{x}", ParserConfig::default());
+        to_build(r"\xrightarrow{x}^2", ParserConfig::default());
+        to_build(r"\xrightarrow{x}_2", ParserConfig::default());
+        to_build(r"\xrightarrow{x}_2^2", ParserConfig::default());
+        to_build(r"\xrightarrow[under]{over}", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
+
+    #[test]
+    fn a_horizontal_brace_parser() {
+        // should not fail
+        to_parse(r"\overbrace{x}", ParserConfig::default());
+        to_parse(r"\overbrace{x^2}", ParserConfig::default());
+        to_parse(r"\overbrace{x}^2", ParserConfig::default());
+        to_parse(r"\overbrace x", ParserConfig::default());
+        to_parse(r"\underbrace{x}_2", ParserConfig::default());
+        to_parse(r"\underbrace{x}_2^2", ParserConfig::default());
+
+        // should produce horizBrace
+        {
+            let parse = parse_tree(r"\overbrace x", ParserConfig::default()).unwrap();
+            let ParseNode::HorizBrace(_) = &parse[0] else {
+                panic!("Expected HorizBrace, got {:?}", parse[0]);
+            };
+        }
+
+        // should be grouped more tightly than supsubs
+        {
+            let parse = parse_tree(r"\overbrace x^2", ParserConfig::default()).unwrap();
+            let ParseNode::SupSub(_) = &parse[0] else {
+                panic!("Expected SupSub, got {:?}", parse[0]);
+            };
+        }
+    }
+
+    #[test]
+    fn a_horizontal_brace_builder() {
+        // should not fail
+        to_build(r"\overbrace{x}", ParserConfig::default());
+        to_build(r"\overbrace{x}^2", ParserConfig::default());
+        to_build(r"\underbrace{x}_2", ParserConfig::default());
+        to_build(r"\underbrace{x}_2^2", ParserConfig::default());
+
+        // Skipping class checks for now.
+    }
 }
