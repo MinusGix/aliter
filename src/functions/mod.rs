@@ -191,6 +191,21 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     });
     fns.insert_builder(color_builder);
 
+    let array_builder = Arc::new(BuilderFunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::Array, 0),
+        #[cfg(feature = "html")]
+        html_builder: Some(Box::new(|group, options| {
+            let ParseNode::Array(array) = group else { panic!() };
+            crate::html::build_array(array, options)
+        })),
+        #[cfg(feature = "mathml")]
+        mathml_builder: Some(Box::new(|group, options| {
+            let ParseNode::Array(array) = group else { panic!() };
+            crate::mathml::build_array(array, options)
+        })),
+    });
+    fns.insert_builder(array_builder);
+
     fns
 });
 

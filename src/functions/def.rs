@@ -18,7 +18,7 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(
             |ctx: FunctionContext, _args: &[ParseNode], _opt_args: &[Option<ParseNode>]| {
                 ctx.parser.consume_spaces().unwrap();
-                let mut token = ctx.parser.fetch_mut().unwrap();
+                let token = ctx.parser.fetch_mut().unwrap();
 
                 if let Some(map) = get_global_map(&token.content) {
                     if ctx.func_name == "\\global" || ctx.func_name == "\\\\globallong" {

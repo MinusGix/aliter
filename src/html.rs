@@ -1,13 +1,14 @@
 use std::borrow::Cow;
 
 use crate::{
-    build_common::{self, make_empty_span, make_span, make_span_s},
+    build_common::{self, make_empty_span, make_span, make_span_s, make_v_list, VListElemShift, VListParam},
     dom_tree::{CssStyle, HtmlNode, Span, WithHtmlDomNode},
     functions,
-    parse_node::ParseNode,
+    parse_node::{ArrayNode, ArrayTag, ParseNode},
+    style::SCRIPT_STYLE,
     spacing_data::{SPACINGS, TIGHT_SPACINGS},
     tree::ClassList,
-    unit::{make_em, Measurement},
+    unit::{calculate_size, make_em, Measurement},
     util::{find_assoc_data, has_class},
     Options,
 };
@@ -19,6 +20,7 @@ const BIN_LEFT_CANCELLER: &'static [&'static str] =
     &["leftmost", "mbin", "mopen", "mrel", "mop", "mpunct"];
 const BIN_RIGHT_CANCELLER: &'static [&'static str] = &["rightmost", "mrel", "mclose", "mpunct"];
 
+#[allow(dead_code)]
 enum Side {
     Left,
     Right,
@@ -458,6 +460,321 @@ pub(crate) fn build_group(
     } else {
         panic!("Got group of unknown type: {:?}", group.typ());
     }
+}
+
+/// Build a simple HTML representation of an array/align-like group.
+pub(crate) fn build_array(group: &ArrayNode, options: &Options) -> HtmlNode {
+    let font_metrics = options.font_metrics();
+    let rule_thickness = font_metrics
+        .array_rule_width
+        .max(options.min_rule_thickness.0);
+
+    // Horizontal spacing defaults
+    let pt = 1.0 / font_metrics.pt_per_em;
+    let mut array_col_sep = 5.0 * pt;
+    if matches!(
+        group.col_separation_type,
+        Some(crate::array::ColSeparationType::Small)
+    ) {
+        if let Some(local) = options.having_style(SCRIPT_STYLE) {
+            array_col_sep = 0.2778 * (local.size_multiplier() / options.size_multiplier());
+        } else {
+            array_col_sep = 0.2778;
+        }
+    }
+
+    // Vertical spacing defaults
+    let base_line_skip = if matches!(
+        group.col_separation_type,
+        Some(crate::array::ColSeparationType::Cd)
+    ) {
+        calculate_size(&Measurement::Ex(crate::unit::Ex(3.0)), options)
+    } else {
+        12.0 * pt
+    };
+    let jot = 3.0 * pt;
+    let array_skip = group.array_stretch * base_line_skip;
+    let arstrut_height = 0.7 * array_skip;
+    let arstrut_depth = 0.3 * array_skip;
+
+    let mut total_height = 0.0f64;
+    let mut hlines = Vec::new();
+    let mut rows = Vec::new();
+
+    let push_hlines =
+        |height: &mut f64, target: &mut Vec<(f64, bool)>, lines_in_gap: &[bool]| {
+            for (i, dashed) in lines_in_gap.iter().enumerate() {
+                if i > 0 {
+                    *height += 0.25;
+                }
+                target.push((*height, *dashed));
+            }
+        };
+
+    push_hlines(&mut total_height, &mut hlines, &group.h_lines_before_row[0]);
+
+    for (row_idx, row) in group.body.iter().enumerate() {
+        let mut height = arstrut_height;
+        let mut depth = arstrut_depth;
+
+        let mut outrow: Vec<Option<HtmlNode>> = vec![None; row.len()];
+        for (c, cell) in row.iter().enumerate() {
+            let elt = build_group(Some(cell), options, None);
+            height = height.max(elt.node().height);
+            depth = depth.max(elt.node().depth);
+            outrow[c] = Some(elt);
+        }
+
+        let mut gap = 0.0;
+        if let Some(row_gap) = group.row_gaps.get(row_idx).and_then(|g| g.as_ref()) {
+            gap = calculate_size(row_gap, options);
+            if gap > 0.0 {
+                gap += arstrut_depth;
+                if depth < gap {
+                    depth = gap;
+                }
+                gap = 0.0;
+            }
+        }
+        if group.add_jot.unwrap_or(false) {
+            depth += jot;
+        }
+
+        total_height += height;
+        let pos = total_height;
+        total_height += depth + gap;
+
+        rows.push((outrow, height, depth, pos));
+
+        if let Some(next) = group.h_lines_before_row.get(row_idx + 1) {
+            push_hlines(&mut total_height, &mut hlines, next);
+        }
+    }
+
+    let offset = total_height / 2.0 + font_metrics.axis_height;
+    let mut nc = rows.iter().map(|r| r.0.len()).max().unwrap_or(0);
+
+    // Build tag column if needed
+    let mut tag_spans: Vec<VListElemShift<HtmlNode>> = Vec::new();
+    if let Some(tags) = &group.tags {
+        for (r, (_, height, depth, pos)) in rows.iter().enumerate() {
+            let shift = pos - offset;
+            if let Some(tag) = tags.get(r) {
+                let mut tag_span: Span<HtmlNode> = match tag {
+                    ArrayTag::Boolean(true) => build_common::make_span::<HtmlNode>(
+                        vec!["eqn-num".to_string()],
+                        Vec::new(),
+                        Some(options),
+                        CssStyle::default(),
+                    ),
+                    ArrayTag::Boolean(false) => make_empty_span(ClassList::new()).using_html_node(),
+                    ArrayTag::Tag(body) => build_common::make_span::<HtmlNode>(
+                        vec!["tag".to_string()],
+                        build_expression(body, options, RealGroup::True, (None, None)),
+                        Some(options),
+                        CssStyle::default(),
+                    ),
+                };
+                tag_span.node.height = *height;
+                tag_span.node.depth = *depth;
+                tag_spans.push(VListElemShift::new(tag_span.into(), shift));
+            }
+        }
+    }
+
+    let col_descriptions = group.cols.as_deref().unwrap_or(&[]);
+    let mut cols: Vec<HtmlNode> = Vec::new();
+    let hskip_before_and_after = group.h_skip_before_and_after.unwrap_or(false);
+
+    // Build each column, interleaving separators and skips
+    let mut col_descr_num = 0usize;
+    let mut c = 0usize;
+    while c < nc || col_descr_num < col_descriptions.len() {
+        let mut col_descr = col_descriptions.get(col_descr_num);
+
+        let mut first_separator = true;
+        while let Some(crate::array::AlignSpec::Separator(sep)) = col_descr {
+            if !first_separator {
+                let mut sep_span = make_span::<HtmlNode>(
+                    vec!["arraycolsep".to_string()],
+                    Vec::new(),
+                    Some(options),
+                    CssStyle {
+                        width: Some(Cow::Owned(make_em(font_metrics.double_rule_sep))),
+                        ..CssStyle::default()
+                    },
+                );
+                sep_span.node.depth = 0.0;
+                sep_span.node.height = 0.0;
+                cols.push(sep_span.into());
+            }
+
+            let mut separator = make_span::<HtmlNode>(
+                vec!["vertical-separator".to_string()],
+                Vec::new(),
+                Some(options),
+                CssStyle::default(),
+            );
+            separator.node.style.height = Some(Cow::Owned(make_em(total_height)));
+            separator.node.style.border_right_width = Some(Cow::Owned(make_em(rule_thickness)));
+            separator.node.style.border_right_style =
+                Some(Cow::Owned(if sep.as_ref() == ":" { "dashed" } else { "solid" }.to_string()));
+            separator.node.style.margin =
+                Some(Cow::Owned(format!("0 {}", make_em(-rule_thickness / 2.0))));
+            let shift = total_height - offset;
+            if shift != 0.0 {
+                separator
+                    .node
+                    .style
+                    .vertical_align
+                    .replace(Cow::Owned(make_em(-shift)));
+            }
+            cols.push(separator.into());
+
+            col_descr_num += 1;
+            col_descr = col_descriptions.get(col_descr_num);
+            first_separator = false;
+        }
+
+        if c >= nc {
+            col_descr_num += 1;
+            continue;
+        }
+
+        let sepwidth_pre = if c > 0 || hskip_before_and_after {
+            col_descr
+                .and_then(|cd| {
+                    if let crate::array::AlignSpec::Align { pre_gap, .. } = cd {
+                        *pre_gap
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(array_col_sep)
+        } else {
+            0.0
+        };
+        if sepwidth_pre != 0.0 {
+            let mut sep = make_span::<HtmlNode>(
+                vec!["arraycolsep".to_string()],
+                Vec::new(),
+                Some(options),
+                CssStyle {
+                    width: Some(Cow::Owned(make_em(sepwidth_pre))),
+                    ..CssStyle::default()
+                },
+            );
+            sep.node.height = 0.0;
+            sep.node.depth = 0.0;
+            cols.push(sep.into());
+        }
+
+        let mut column_children: Vec<VListElemShift<HtmlNode>> = Vec::new();
+        for (r_idx, (row, height, depth, pos)) in rows.iter().enumerate() {
+            if let Some(elem) = row.get(c).and_then(|x| x.as_ref()) {
+                let mut elem = elem.clone();
+                elem.node_mut().height = *height;
+                elem.node_mut().depth = *depth;
+                column_children.push(VListElemShift::new(elem.clone(), pos - offset));
+            } else if let Some(tags) = &group.tags {
+                // Even if the cell is missing, tags may introduce a column count
+                if tags.get(r_idx).is_some() && nc < c + 1 {
+                    nc = c + 1;
+                }
+            }
+        }
+
+        if column_children.is_empty() {
+            c += 1;
+            col_descr_num += 1;
+            continue;
+        }
+
+        let mut col_vlist = make_v_list(
+            VListParam::IndividualShift {
+                children: column_children,
+            },
+            options,
+        );
+
+        let align_class = if let Some(crate::array::AlignSpec::Align { align, .. }) = col_descr {
+            format!("col-align-{}", align.as_ref())
+        } else {
+            "col-align-c".to_string()
+        };
+        col_vlist
+            .node
+            .classes
+            .push(align_class);
+        cols.push(col_vlist.into());
+
+        let sepwidth_post = if c + 1 < nc || hskip_before_and_after {
+            col_descr
+                .and_then(|cd| {
+                    if let crate::array::AlignSpec::Align { post_gap, .. } = cd {
+                        *post_gap
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(array_col_sep)
+        } else {
+            0.0
+        };
+        if sepwidth_post != 0.0 {
+            let mut sep = make_span::<HtmlNode>(
+                vec!["arraycolsep".to_string()],
+                Vec::new(),
+                Some(options),
+                CssStyle {
+                    width: Some(Cow::Owned(make_em(sepwidth_post))),
+                    ..CssStyle::default()
+                },
+            );
+            sep.node.height = 0.0;
+            sep.node.depth = 0.0;
+            cols.push(sep.into());
+        }
+
+        c += 1;
+        col_descr_num += 1;
+    }
+
+    let mut body = make_span::<HtmlNode>(vec!["mtable".to_string()], cols, Some(options), CssStyle::default());
+
+    if !hlines.is_empty() {
+        let mut vlist_children: Vec<VListElemShift<HtmlNode>> = Vec::new();
+        vlist_children.push(VListElemShift::new(body.clone().into(), 0.0));
+
+        for (pos, dashed) in hlines.into_iter().rev() {
+            let class = if dashed { "hdashline" } else { "hline" };
+            let line = build_common::make_line_span(class, options, Some(rule_thickness));
+            vlist_children.push(VListElemShift::new(line.into(), pos - offset));
+        }
+
+        body = make_v_list(VListParam::IndividualShift { children: vlist_children }, options);
+    }
+
+    let final_node: HtmlNode = if tag_spans.is_empty() {
+        build_common::make_span::<HtmlNode>(
+            vec!["mord".to_string()],
+            vec![body.into()],
+            Some(options),
+            CssStyle::default(),
+        )
+        .into()
+    } else {
+        let mut eqn_num_col = make_v_list(
+            VListParam::IndividualShift {
+                children: tag_spans,
+            },
+            options,
+        );
+        eqn_num_col.node.classes.push("tag".to_string());
+        build_common::make_fragment::<HtmlNode>(vec![body.into(), eqn_num_col.into()]).into()
+    };
+
+    final_node
 }
 
 /// Return the outermost node of a dom tree

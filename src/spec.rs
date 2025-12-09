@@ -1,11 +1,14 @@
 //! This is a conversion of the katex-spec.js file which tests KaTeX.
 
-use crate::parser::ParserConfig;
-use crate::parse_node::Color;
-use crate::util::{RGBA, Style};
-
 #[cfg(test)]
 mod tests {
+    #![allow(
+        dead_code,
+        unused_imports,
+        unused_variables,
+        unused_mut,
+        unnameable_test_items
+    )]
     use crate::{
         expander::Mode,
         mathml::build_mathml,

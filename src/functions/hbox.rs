@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::parse_node::{HBoxNode, NodeInfo, ParseNode, ParseNodeType};
 use crate::util::ArgType;
 
-use super::{ord_argument, FunctionPropSpec, FunctionSpec, Functions};
+use super::{FunctionPropSpec, FunctionSpec, Functions};
 
 pub fn add_functions(fns: &mut Functions) {
     let hbox = Arc::new(FunctionSpec {
@@ -12,7 +12,7 @@ pub fn add_functions(fns: &mut Functions) {
             .with_allowed_in_text(true)
             .with_primitive(true)
             .with_arg_types(&[ArgType::Raw] as &[ArgType]),
-        handler: Box::new(|ctx, args, _| {
+        handler: Box::new(|ctx, _args, _| {
             // We ignore the raw content for now; \hbox acts as a container barrier.
             ParseNode::HBox(HBoxNode {
                 body: Vec::new(),

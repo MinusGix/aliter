@@ -9,6 +9,11 @@ fn render(expr: &str) -> String {
     tree.to_markup()
 }
 
+fn render_conf(expr: &str, conf: ParserConfig) -> String {
+    let tree = render_to_html_tree(expr, conf);
+    tree.to_markup()
+}
+
 #[test]
 fn render_empty_and_simple_ord() {
     let conf = ParserConfig::default();
@@ -155,6 +160,30 @@ fn render_arrows() {
     );
 }
 
+#[test]
+fn render_array_with_hlines_and_separators() {
+    let html = render("\\begin{array}{|c|} a \\\\ \\hline b \\end{array}");
+    assert!(
+        html.contains("vertical-separator"),
+        "expected vertical separator in array markup: {html}"
+    );
+    assert!(
+        html.contains("hline"),
+        "expected horizontal line in array markup: {html}"
+    );
+}
+
+#[test]
+fn render_align_with_tags() {
+    let mut conf = ParserConfig::default();
+    conf.display_mode = true;
+    let html = render_conf("\\begin{align} a &= b \\\\ c &= d \\end{align}", conf);
+    assert!(
+        html.contains("eqn-num") || html.contains("tag"),
+        "expected equation number column in align markup: {html}"
+    );
+}
+
 #[cfg(feature = "mathml")]
 fn render_mathml(expr: &str) -> String {
     let conf = ParserConfig::default();
@@ -203,7 +232,10 @@ fn an_html_font_tree_builder() {
     // should render \text{\textit{R}} with the correct font
     {
         let markup = render(r"\text{\textit{R}}");
-        assert!(markup.contains(r#"<span class="mord textit">R</span>"#));
+        println!("STDOUT MARKUP: {}", markup);
+        if !markup.contains(r#"<span class="mord textit">R</span>"#) {
+             panic!("ASSERTION FAILED. Markup was: {}", markup);
+        }
     }
 
     // should render \textup{R} with the correct font

@@ -188,7 +188,7 @@ impl VirtualNode for HtmlDomNode {
         if let Some(style) = self.style.as_style_attr() {
             attrs.insert("style".to_string(), style);
         }
-        let mut dummy = Span {
+        let dummy = Span {
             node: self.clone(),
             children: Vec::<EmptyNode>::new(),
             attributes: attrs,

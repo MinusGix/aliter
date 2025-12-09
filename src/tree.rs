@@ -162,6 +162,7 @@ pub enum OutputType {
 }
 
 #[cfg(all(feature = "html", feature = "mathml"))]
+#[allow(dead_code)]
 pub(crate) fn build_tree(
     tree: &[ParseNode],
     expr: &str,

@@ -7,7 +7,7 @@ use crate::{
     font_metrics::get_character_metrics,
     functions,
     mathml_tree::{EmptyMathNode, MathNode, MathNodeType, MathmlNode, TextNode, WithMathDomNode},
-    parse_node::{ParseNode, SymbolParseNode, TextOrdNode},
+    parse_node::{ArrayNode, ArrayTag, ParseNode, SymbolParseNode, TextOrdNode},
     symbols::{self, LIGATURES},
     tree::ClassList,
     util::{char_code_for, find_assoc_data, FontVariant},
@@ -224,6 +224,65 @@ pub(crate) fn build_expression_row(
 ) -> MathmlNode {
     let res = build_expression(expression, options, is_ord_group);
     make_row(res)
+}
+
+/// Build a minimal MathML table for array-like structures.
+pub(crate) fn build_array(group: &ArrayNode, options: &Options) -> MathmlNode {
+    let mut table_rows: Vec<MathmlNode> = Vec::new();
+    let glue = MathNode::new(
+        MathNodeType::MTd,
+        Vec::<MathmlNode>::new(),
+        vec!["mtr-glue".to_string()],
+    );
+    let tag_cell = MathNode::new(
+        MathNodeType::MTd,
+        Vec::<MathmlNode>::new(),
+        vec!["mml-eqn-num".to_string()],
+    );
+
+    for (row_idx, row) in group.body.iter().enumerate() {
+        let mut cells: Vec<MathmlNode> = Vec::new();
+        for cell in row {
+            cells.push(
+                MathNode::new(
+                    MathNodeType::MTd,
+                    vec![build_group(Some(cell), options)],
+                    ClassList::new(),
+                )
+                .into(),
+            );
+        }
+
+        if let Some(tags) = &group.tags {
+            if let Some(tag) = tags.get(row_idx) {
+                let mut tagged_cells = Vec::new();
+                if *group.leq_no.as_ref().unwrap_or(&false) {
+                    tagged_cells.push(glue.clone().into());
+                }
+                match tag {
+                    ArrayTag::Boolean(true) => tagged_cells.push(tag_cell.clone().into()),
+                    ArrayTag::Boolean(false) => tagged_cells.push(glue.clone().into()),
+                    ArrayTag::Tag(body) => tagged_cells.push(
+                        MathNode::new(
+                            MathNodeType::MTd,
+                            build_expression(body, options, None),
+                            vec!["mml-eqn-num".to_string()],
+                        )
+                        .into(),
+                    ),
+                }
+                tagged_cells.append(&mut cells);
+                if !group.leq_no.unwrap_or(false) {
+                    tagged_cells.push(glue.clone().into());
+                }
+                cells = tagged_cells;
+            }
+        }
+
+        table_rows.push(MathNode::new(MathNodeType::MTr, cells, ClassList::new()).into());
+    }
+
+    MathNode::new(MathNodeType::MTable, table_rows, ClassList::new()).into()
 }
 
 pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> MathmlNode {

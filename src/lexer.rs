@@ -69,7 +69,7 @@ impl<'a> Lexer<'a> {
             } else if let Some(mac) = capture.get(3) {
                 // other things
                 (mac.as_str(), whole_match_end)
-            } else if let Some(mac) = capture.get(2) {
+            } else if let Some(_mac) = capture.get(2) {
                 // TODO: is this correct?
                 ("\\ ", whole_match_end)
             } else {

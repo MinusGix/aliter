@@ -94,7 +94,7 @@ fn array_from_opts(
 
     let auto_tag = opts.auto_tag;
     let mut tags = opts.tags.or_else(|| auto_tag.map(|_| Vec::new()));
-    let mut begin_row = |parser: &mut Parser| {
+    let begin_row = |parser: &mut Parser| {
         if let Some(true) = auto_tag {
             parser.gullet.macros.set_back_macro(
                 "\\@eqnsw",
@@ -102,7 +102,7 @@ fn array_from_opts(
             );
         }
     };
-    let mut end_row =
+    let end_row =
         |parser: &mut Parser, tags: &mut Option<Vec<ArrayTag>>| -> Result<(), ParseError> {
             if let Some(tags_vec) = tags.as_mut() {
                 if parser.gullet.macros.contains_back_macro("\\df@tag") {
@@ -153,7 +153,7 @@ fn array_from_opts(
             && row.len() == 1
             && matches!(&row[0], ParseNode::Styling(StylingNode { body, .. }) if body.is_empty());
 
-        drop(row);
+        let _ = row;
 
         let next = parser.fetch()?.content.clone();
         if next == "&" {
@@ -277,7 +277,7 @@ fn validate_display(ctx: &EnvironmentContext) -> Result<(), ParseError> {
 }
 
 fn aligned_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -349,7 +349,7 @@ fn aligned_handler(
 }
 
 fn matrix_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -421,7 +421,7 @@ fn matrix_handler(
 }
 
 fn array_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -440,7 +440,7 @@ fn array_handler(
 }
 
 fn smallmatrix_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -457,12 +457,12 @@ fn smallmatrix_handler(
 }
 
 fn subarray_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
     let cols = subarray_align_spec(&args[0])?;
-    let mut res = array_from_opts(
+    let res = array_from_opts(
         ctx.parser,
         ArrayOpts {
             hskip_before_and_after: Some(false),
@@ -479,7 +479,7 @@ fn subarray_handler(
 }
 
 fn cases_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -520,7 +520,7 @@ fn cases_handler(
 }
 
 fn gathered_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -552,7 +552,7 @@ fn gathered_handler(
 }
 
 fn equation_handler(
-    mut ctx: EnvironmentContext,
+    ctx: EnvironmentContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
 ) -> Result<ParseNode, ParseError> {
@@ -862,7 +862,7 @@ pub fn add_environments(envs: &mut Environments) {
         &["CD"],
         FunctionPropSpec::new_num_args(crate::parse_node::ParseNodeType::Array, 0)
             .with_allowed_in_text(true),
-        Box::new(|mut ctx, _, _| {
+        Box::new(|ctx, _, _| {
             validate_display(&ctx)?;
             let res = parse_cd(ctx.parser)?;
             Ok(ParseNode::Array(res))

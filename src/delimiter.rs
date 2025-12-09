@@ -35,6 +35,7 @@ const STACK_LARGE_DELIMITERS: &'static [&'static str] = &[
 ];
 
 /// Delimiters that always stack
+#[allow(dead_code)]
 const STACK_ALWAYS_DELIMITERS: &'static [&'static str] = &[
     "\\uparrow",
     "\\downarrow",
@@ -803,6 +804,7 @@ pub(crate) fn make_sqrt_image(height: f64, options: &Options) -> SqrtImageInfo {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn left_right_delim(
     delim: &str,
     height: f64,

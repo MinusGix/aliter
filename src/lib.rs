@@ -375,6 +375,7 @@ pub fn render_error(
 }
 
 #[cfg(any(feature = "html", feature = "mathml"))]
+#[allow(dead_code)]
 pub(crate) fn render_to_dom_tree(
     expr: &str,
     conf: ParserConfig,
