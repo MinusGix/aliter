@@ -7,6 +7,7 @@ use crate::{
     expander::Mode,
     parse_node::{AccentNode, NodeInfo, ParseNode, ParseNodeType},
     util::ArgType,
+    dom_tree::{HtmlNode, WithHtmlDomNode}, // Added this line
 };
 
 use super::{normalize_argument, FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
@@ -45,10 +46,50 @@ fn add_accents(fns: &mut Functions) {
     let accent = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Accent, 1),
         handler: Box::new(accent_handler),
-        // TODO:
         #[cfg(feature = "html")]
-        html_builder: None,
-        // TODO
+        html_builder: Some(Box::new(|group, options| {
+            use crate::{build_common, html};
+
+            let ParseNode::Accent(group) = group else {
+                panic!();
+            };
+
+            let base_node = html::build_group(Some(&group.base), options, None);
+
+            let accent_node: HtmlNode = if group.is_stretchy.unwrap_or(false) {
+                build_common::static_svg(&group.label, options).into()
+            } else {
+                let accent_char = if group.label == "\\vec" {
+                    "\u{2192}"
+                } else {
+                    &group.label
+                };
+
+                build_common::make_symbol(accent_char, "Main-Regular", group.info.mode, Some(options), Vec::new()).into()
+            };
+
+            let accent_node_height = accent_node.node().height;
+            let accent_node_depth = accent_node.node().depth;
+
+            let accent_shift = base_node.node().height;
+
+            let mut vlist_children = Vec::new();
+            vlist_children.push(build_common::VListElemShift::new(base_node, 0.0));
+            vlist_children.push(build_common::VListElemShift::new(accent_node, accent_shift));
+
+            let mut vlist = build_common::make_v_list(
+                build_common::VListParam::IndividualShift {
+                    children: vlist_children,
+                },
+                options,
+            );
+
+            if group.is_shifty.unwrap_or(false) {
+                vlist.node.classes.push("accent-shifty".to_string());
+            }
+
+            vlist.into()
+        })),
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });
@@ -110,10 +151,54 @@ fn add_text_mode_accents(fns: &mut Functions) {
             .with_allowed_in_math(true)
             .with_arg_types(&[ArgType::Primitive] as &[ArgType]),
         handler: Box::new(text_mode_accent_handler),
-        // TODO:
         #[cfg(feature = "html")]
-        html_builder: None,
-        // TODO
+        html_builder: Some(Box::new(|group, options| {
+            use crate::{build_common, html};
+
+            let ParseNode::Accent(group) = group else {
+                panic!();
+            };
+
+            let base_node = html::build_group(Some(&group.base), options, None);
+
+            let accent_node: HtmlNode = if group.is_stretchy.unwrap_or(false) {
+                build_common::static_svg(&group.label, options).into()
+            } else {
+                let accent_char = if group.label == "\\vec" {
+                    "\u{2192}"
+                } else {
+                    &group.label
+                };
+
+                build_common::make_symbol(accent_char, "Main-Regular", group.info.mode, Some(options), Vec::new()).into()
+            };
+
+            let accent_node_height = accent_node.node().height;
+            let accent_node_depth = accent_node.node().depth;
+
+            // Shift the accent node vertically. The exact positioning logic should be
+            // derived from KaTeX's original implementation, but for a start, we'll
+            // place it above the base.
+            let accent_shift = base_node.node().height; // Simple start: place accent just above base
+
+            let mut vlist_children = Vec::new();
+            vlist_children.push(build_common::VListElemShift::new(base_node, 0.0));
+            vlist_children.push(build_common::VListElemShift::new(accent_node, accent_shift));
+
+            let mut vlist = build_common::make_v_list(
+                build_common::VListParam::IndividualShift {
+                    children: vlist_children,
+                },
+                options,
+            );
+
+            // Add classes for styling, e.g., for shifty accents.
+            if group.is_shifty.unwrap_or(false) {
+                vlist.node.classes.push("accent-shifty".to_string());
+            }
+
+            vlist.into()
+        })),
         #[cfg(feature = "mathml")]
         mathml_builder: None,
     });
@@ -142,5 +227,4 @@ fn text_mode_accent_handler<'a, 'p, 'i, 'f>(
     })
 }
 
-// TODO: HTML and MathML builders!
-// behind features of course
+
