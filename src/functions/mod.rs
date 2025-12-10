@@ -37,6 +37,7 @@ pub mod href;
 mod htmlmathml;
 mod kern;
 mod lap;
+mod mathchoice;
 mod mclass;
 mod op;
 mod overline;
@@ -81,6 +82,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     href::add_functions(&mut fns);
     kern::add_functions(&mut fns);
     lap::add_functions(&mut fns);
+    mathchoice::add_functions(&mut fns);
     mclass::add_functions(&mut fns);
     op::add_functions(&mut fns);
     overline::add_functions(&mut fns);

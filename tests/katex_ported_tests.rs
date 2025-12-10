@@ -1810,8 +1810,8 @@ fn large_operators_with_limits_parse() {
 fn multiple_integrals_parse() {
     assert_parses(r"\iint");
     assert_parses(r"\iiint");
-    assert_parses(r"\iiiint");
-    assert_parses(r"\idotsint");
+    // Note: \iiiint and \idotsint are NOT symbols in KaTeX - they're only in
+    // dotsByToken for \dots spacing behavior. They'd need to be defined as macros.
 }
 
 // =============================================================================
