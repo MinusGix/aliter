@@ -176,9 +176,11 @@ impl Default for ParserConfig {
 
 /// How strict to be about features that make writing LaTeX convenient but are not actually
 /// supported by it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StrictMode {
-    /// Log errors
+    /// Silently ignore issues
+    Ignore,
+    /// Log warnings but continue
     Warn,
     /// Error on the KaTeX statement
     Error,
