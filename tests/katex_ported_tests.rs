@@ -1687,7 +1687,7 @@ fn cancel_commands_parse() {
     assert_parses(r"\cancel{x}");
     assert_parses(r"\bcancel{x}");
     assert_parses(r"\xcancel{x}");
-    assert_parses(r"\cancelto{0}{x}");
+    // Note: \cancelto is NOT supported by KaTeX (it's from the LaTeX cancel package)
     assert_parses(r"\sout{text}");
 }
 

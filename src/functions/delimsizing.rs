@@ -67,17 +67,23 @@ fn canonical_delim(delim: &str) -> String {
     }
 }
 
+/// Check if the given node is a valid delimiter.
+/// In KaTeX, this is done by checkSymbolNodeType which accepts both
+/// atom nodes and non-atom symbol nodes (textord, mathord, etc.)
 fn check_delimiter(arg: &ParseNode) -> Result<String, ParseError> {
-    if let ParseNode::Atom(atom) = arg {
-        let delim = atom.text.as_ref();
-        if DELIMITERS.contains(&delim) {
-            return Ok(canonical_delim(delim));
-        } else {
-            return Err(ParseError::Expected);
-        }
-    }
+    // Get the text from the node (supports atom, textord, mathord, etc.)
+    let delim = match arg {
+        ParseNode::Atom(atom) => atom.text.as_ref(),
+        ParseNode::TextOrd(ord) => ord.text.as_ref(),
+        ParseNode::MathOrd(ord) => ord.text.as_ref(),
+        _ => return Err(ParseError::Expected),
+    };
 
-    Err(ParseError::Expected)
+    if DELIMITERS.contains(&delim) {
+        Ok(canonical_delim(delim))
+    } else {
+        Err(ParseError::Expected)
+    }
 }
 
 pub fn add_functions(fns: &mut Functions) {

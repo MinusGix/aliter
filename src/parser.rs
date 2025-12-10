@@ -1453,11 +1453,8 @@ impl<'a, 'f> Parser<'a, 'f> {
 
         let symbol = if let Some(symbol) = symbols::SYMBOLS.get(self.mode(), &text) {
             // TODO: warn/error if strict and mode is math and extra latin contains text
-            let mut text = text;
-            if let Some(repl) = symbol.replace {
-                text = Cow::Borrowed(repl);
-            }
-
+            // NOTE: symbol.replace is used for rendering, not parsing
+            // The atom text should keep the original token text (like KaTeX does)
             let group = symbol.group;
 
             match group {
