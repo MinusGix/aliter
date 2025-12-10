@@ -1402,7 +1402,8 @@ impl<'a, 'f> Parser<'a, 'f> {
             if let Some(symbol) = unicode::SYMBOLS.get(&first_ch) {
                 if symbols::SYMBOLS.get(self.mode(), first).is_none() {
                     // TODO: warn/error if strict and the mode is math
-                    let sub = &text[1..];
+                    // Use char length for proper UTF-8 handling
+                    let sub = &text[first_ch.len_utf8()..];
                     text = Cow::Owned(format!("{symbol}{sub}"));
                 }
             }
