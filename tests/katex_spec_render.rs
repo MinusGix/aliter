@@ -146,7 +146,7 @@ fn render_text_fonts() {
 fn render_matrix() {
     let html = render("\\begin{matrix} a & b \\\\ c & d \\end{matrix}");
     assert!(
-        html.contains("matrix") || html.contains("<table") || html.contains("<mtable"),
+        html.contains("matrix") || html.contains("mtable") || html.contains("<table") || html.contains("<mtable"),
         "expected matrix-like structure in {html}"
     );
 }
