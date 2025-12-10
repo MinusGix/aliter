@@ -5,8 +5,8 @@ use std::sync::Arc;
 use once_cell::sync::Lazy;
 
 use crate::parse_node::{
-    DelimSize, DelimSizingNode, LeftRightNode, LeftRightRightNode, MClass, NodeInfo, ParseNode,
-    ParseNodeType,
+    DelimSize, DelimSizingNode, LeftRightNode, LeftRightRightNode, MClass, MiddleNode, NodeInfo,
+    ParseNode, ParseNodeType,
 };
 use crate::parser::ParseError;
 
@@ -139,10 +139,15 @@ pub fn add_functions(fns: &mut Functions) {
         handler: Box::new(|ctx, args, _| {
             let left_delim = check_delimiter(&args[0]).unwrap();
 
+            // Track nesting depth for \middle validation
+            ctx.parser.leftright_depth += 1;
+
             let body =
                 ctx.parser
                     .dispatch_parse_expression(false, Some(crate::expander::BreakToken::Right))
                     .unwrap();
+
+            ctx.parser.leftright_depth -= 1;
 
             // Parse the following \right
             let right = ctx
@@ -168,4 +173,27 @@ pub fn add_functions(fns: &mut Functions) {
         mathml_builder: None,
     });
     fns.insert(Cow::Borrowed("\\left"), left);
+
+    // \middle
+    let middle = Arc::new(FunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::Middle, 1)
+            .with_primitive(true),
+        handler: Box::new(|ctx, args, _| {
+            let delim = check_delimiter(&args[0]).unwrap();
+
+            if ctx.parser.leftright_depth == 0 {
+                panic!("\\middle without preceding \\left");
+            }
+
+            ParseNode::Middle(MiddleNode {
+                delim,
+                info: NodeInfo::new_mode(ctx.parser.mode()),
+            })
+        }),
+        #[cfg(feature = "html")]
+        html_builder: None,
+        #[cfg(feature = "mathml")]
+        mathml_builder: None,
+    });
+    fns.insert(Cow::Borrowed("\\middle"), middle);
 }

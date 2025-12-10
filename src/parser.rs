@@ -198,6 +198,8 @@ pub struct Parser<'a, 'f> {
     pub(crate) gullet: MacroExpander<'a, 'f>,
     /// Lookahead token
     next_token: Option<Token<'a>>,
+    /// Depth of \left...\right nesting (for \middle validation)
+    pub(crate) leftright_depth: usize,
 }
 impl<'a, 'f> Parser<'a, 'f> {
     pub fn new(input: &'a str, conf: ParserConfig, functions: &'f Functions) -> Parser<'a, 'f> {
@@ -205,6 +207,7 @@ impl<'a, 'f> Parser<'a, 'f> {
             gullet: MacroExpander::new(input, conf.clone(), functions, Mode::Math),
             conf,
             next_token: None,
+            leftright_depth: 0,
         }
     }
 
