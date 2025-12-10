@@ -242,15 +242,17 @@ fn should_build_ties() {
 // Strut Tests
 // =============================================================================
 
+// Note: \strut is not supported by KaTeX (only \mathstrut is)
+
 #[test]
-fn should_parse_strut() {
-    assert_parses(r"\strut");
-    assert_parses(r"a\strut b");
+fn should_parse_mathstrut() {
+    assert_parses(r"\mathstrut");
+    assert_parses(r"a\mathstrut b");
 }
 
 #[test]
-fn should_build_strut() {
-    assert_builds(r"baseline\strut test");
+fn should_build_mathstrut() {
+    assert_builds(r"baseline\mathstrut test");
 }
 
 // =============================================================================
@@ -273,16 +275,7 @@ fn should_build_raisebox() {
 // Mspace Tests
 // =============================================================================
 
-#[test]
-fn should_parse_mspace() {
-    assert_parses(r"\mspace{1mu}");
-    assert_parses(r"\mspace{18mu}");  // \quad = 18mu
-}
-
-#[test]
-fn should_build_mspace() {
-    assert_builds(r"a\mspace{3mu}b");
-}
+// Note: \mspace is not supported by KaTeX (use \mkern or \hspace instead)
 
 // =============================================================================
 // Mkern Tests

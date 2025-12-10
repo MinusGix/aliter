@@ -535,7 +535,7 @@ fn cancel_parser_should_not_fail() {
     assert_parses(r"\cancel{x}");
     assert_parses(r"\bcancel{x}");
     assert_parses(r"\xcancel{x}");
-    assert_parses(r"\cancelto{0}{x}");
+    // Note: \cancelto is not supported by KaTeX
 }
 
 // =============================================================================

@@ -16,6 +16,7 @@ use crate::{
     },
     symbols::{self, Group},
     unicode,
+    unicode_scripts,
     unit::{self, Measurement},
     util::{
         first_ch_str, parse_rgb, parse_rgb_3, parse_rgba, ArgType, SourceLocation, Style, RGBA,
@@ -111,6 +112,8 @@ pub enum ParseError {
 
     /// Unicode text character used in math mode (strict mode)
     UnicodeTextInMathMode(char),
+    /// Unrecognized Unicode character (strict mode)
+    UnknownUnicodeSymbol(char),
     /// Comment without newline (strict mode)
     CommentWithoutNewline,
     /// Too many columns in array (strict mode)
@@ -1427,7 +1430,10 @@ impl<'a, 'f> Parser<'a, 'f> {
             // If it is in the unicode symbols but not in the defined symbols
             if let Some(symbol) = unicode::SYMBOLS.get(&first_ch) {
                 if symbols::SYMBOLS.get(self.mode(), first).is_none() {
-                    // TODO: warn/error if strict and the mode is math
+                    // This behavior is not strict (XeTeX-compatible) in math mode
+                    if self.mode() == Mode::Math && self.conf.strict == StrictMode::Error {
+                        return Err(ParseError::UnicodeTextInMathMode(first_ch));
+                    }
                     // Use char length for proper UTF-8 handling
                     let sub = &text[first_ch.len_utf8()..];
                     text = Cow::Owned(format!("{symbol}{sub}"));
@@ -1499,10 +1505,22 @@ impl<'a, 'f> Parser<'a, 'f> {
             }
             // TODO: is this 0x80 check mimicking katex right?
         } else if let Some(true) = text.chars().next().map(|x| x as u32 >= 0x80) {
-            // Unicode text character in math mode - report strict error
-            if self.mode() == Mode::Math && self.conf.strict == StrictMode::Error {
-                let ch = text.chars().next().unwrap();
-                return Err(ParseError::UnicodeTextInMathMode(ch));
+            let ch = text.chars().next().unwrap();
+            let codepoint = ch as u32;
+
+            // Check strict mode handling
+            if self.conf.strict == StrictMode::Error {
+                // First check if the codepoint is even supported
+                let is_supported = codepoint <= 0xFFFF
+                    && unicode_scripts::supported_codepoint(codepoint as u16);
+
+                if !is_supported {
+                    // Unknown/unsupported Unicode symbol
+                    return Err(ParseError::UnknownUnicodeSymbol(ch));
+                } else if self.mode() == Mode::Math {
+                    // Supported Unicode text character in math mode
+                    return Err(ParseError::UnicodeTextInMathMode(ch));
+                }
             }
 
             ParseNode::TextOrd(TextOrdNode {

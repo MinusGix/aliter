@@ -169,7 +169,10 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
 
             if let Some(base) = base {
                 // Parse a number in the given base, starting with the first token
-                debug_assert_eq!(token.content.len(), 1);
+                // Token must be a single character digit
+                if token.content.len() != 1 || token.is_eof() {
+                    return Err(ParseError::CharInvalidBaseDigit);
+                }
                 let first_char = token.content.chars().nth(0).unwrap();
                 let first_digit =
                     ch_to_digit_in_base(first_char, base).ok_or_else(|| ParseError::CharInvalidBaseDigit)?;
@@ -233,8 +236,12 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
                 token = exp.expand_next_token()?;
             }
 
-            // TODO: don't unwrap
-            num_args = arg_text.parse().unwrap();
+            // Validate that arg_text is a valid integer (only digits with optional whitespace)
+            let trimmed = arg_text.trim();
+            if !trimmed.chars().all(|c| c.is_ascii_digit()) || trimmed.is_empty() {
+                return Err(ParseError::InvalidArgumentNumber);
+            }
+            num_args = trimmed.parse().map_err(|_| ParseError::InvalidArgumentNumber)?;
             arg = exp.consume_arg()?.tokens;
         }
 
