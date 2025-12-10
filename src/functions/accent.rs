@@ -48,7 +48,7 @@ fn add_accents(fns: &mut Functions) {
         handler: Box::new(accent_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {
-            use crate::{build_common, html};
+            use crate::{build_common, html, stretchy};
 
             let ParseNode::Accent(group) = group else {
                 panic!();
@@ -57,7 +57,7 @@ fn add_accents(fns: &mut Functions) {
             let base_node = html::build_group(Some(&group.base), options, None);
 
             let accent_node: HtmlNode = if group.is_stretchy.unwrap_or(false) {
-                build_common::static_svg(&group.label, options).into()
+                stretchy::svg_span(&group.label, options)
             } else {
                 let accent_char = if group.label == "\\vec" {
                     "\u{2192}"
@@ -68,8 +68,8 @@ fn add_accents(fns: &mut Functions) {
                 build_common::make_symbol(accent_char, "Main-Regular", group.info.mode, Some(options), Vec::new()).into()
             };
 
-            let accent_node_height = accent_node.node().height;
-            let accent_node_depth = accent_node.node().depth;
+            let _accent_node_height = accent_node.node().height;
+            let _accent_node_depth = accent_node.node().depth;
 
             let accent_shift = base_node.node().height;
 
@@ -153,7 +153,7 @@ fn add_text_mode_accents(fns: &mut Functions) {
         handler: Box::new(text_mode_accent_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {
-            use crate::{build_common, html};
+            use crate::{build_common, html, stretchy};
 
             let ParseNode::Accent(group) = group else {
                 panic!();
@@ -162,7 +162,7 @@ fn add_text_mode_accents(fns: &mut Functions) {
             let base_node = html::build_group(Some(&group.base), options, None);
 
             let accent_node: HtmlNode = if group.is_stretchy.unwrap_or(false) {
-                build_common::static_svg(&group.label, options).into()
+                stretchy::svg_span(&group.label, options)
             } else {
                 let accent_char = if group.label == "\\vec" {
                     "\u{2192}"
@@ -173,8 +173,8 @@ fn add_text_mode_accents(fns: &mut Functions) {
                 build_common::make_symbol(accent_char, "Main-Regular", group.info.mode, Some(options), Vec::new()).into()
             };
 
-            let accent_node_height = accent_node.node().height;
-            let accent_node_depth = accent_node.node().depth;
+            let _accent_node_height = accent_node.node().height;
+            let _accent_node_depth = accent_node.node().depth;
 
             // Shift the accent node vertically. The exact positioning logic should be
             // derived from KaTeX's original implementation, but for a start, we'll

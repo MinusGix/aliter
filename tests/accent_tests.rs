@@ -92,11 +92,8 @@ fn should_parse_check_accent() {
 // Additional Accents
 // =============================================================================
 
-#[test]
-fn should_parse_dddot_and_ddddot() {
-    assert_parses(r"\dddot{x}");
-    assert_parses(r"\ddddot{x}");
-}
+// Note: \dddot and \ddddot are NOT supported in KaTeX
+// See KaTeX docs/support_table.md - they are listed as "Not supported"
 
 #[test]
 fn should_parse_mathring() {
@@ -337,7 +334,8 @@ fn should_parse_accent_in_subscript() {
 
 #[test]
 fn should_parse_derivative_notation() {
-    assert_parses(r"\dot{x}, \ddot{x}, \dddot{x}");
+    // Note: \dddot is NOT supported in KaTeX
+    assert_parses(r"\dot{x}, \ddot{x}");
 }
 
 #[test]

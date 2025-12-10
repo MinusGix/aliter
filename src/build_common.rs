@@ -468,6 +468,16 @@ impl<T: WithHtmlDomNode> VListElem<T> {
         }
     }
 
+    pub(crate) fn new_with_wrapper_classes(elem: T, classes: Vec<String>) -> VListElem<T> {
+        VListElem {
+            elem,
+            margin_left: None,
+            margin_right: None,
+            wrapper_classes: ClassList::from(classes),
+            wrapper_style: CssStyle::default(),
+        }
+    }
+
     pub(crate) fn map<U: WithHtmlDomNode>(self, f: impl FnOnce(T) -> U) -> VListElem<U> {
         VListElem {
             elem: f(self.elem),
@@ -879,6 +889,16 @@ const SVG_DATA: &'static [(&'static str, (&'static str, f64, f64))] = &[
     ("oiiintSize1", ("oiiintSize1", 1.304, 0.499)),
     ("oiiintSize2", ("oiiintSize2", 1.98, 0.659)),
 ];
+
+/// Create a span containing SVG elements
+#[cfg(feature = "html")]
+pub(crate) fn make_svg_span(
+    classes: Vec<String>,
+    children: Vec<SvgNode>,
+    options: &Options,
+) -> Span<SvgNode> {
+    Span::new(classes, children, Some(options), CssStyle::default())
+}
 
 #[cfg(feature = "html")]
 pub(crate) fn static_svg(value: &str, options: &Options) -> Span<SvgNode> {

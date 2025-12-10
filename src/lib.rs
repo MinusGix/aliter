@@ -37,6 +37,7 @@ pub mod parse_node;
 pub mod parser;
 mod spacing_data;
 mod spec;
+mod stretchy;
 pub mod style;
 mod svg_geometry;
 pub mod symbols;
