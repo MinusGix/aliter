@@ -47,6 +47,7 @@ mod vcenter;
 mod phantom;
 mod raise_box;
 mod sizing;
+mod smash;
 mod sqrt;
 mod styling;
 mod symbols_op;
@@ -89,6 +90,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     phantom::add_functions(&mut fns);
     raise_box::add_functions(&mut fns);
     sizing::add_functions(&mut fns);
+    smash::add_functions(&mut fns);
     sqrt::add_functions(&mut fns);
     styling::add_functions(&mut fns);
     symbols_op::add_functions(&mut fns);
