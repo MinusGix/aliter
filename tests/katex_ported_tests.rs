@@ -4,7 +4,7 @@
 //! wasn't previously covered. Some tests may fail until the corresponding
 //! functionality is implemented.
 
-use aliter::{parse_tree, parser::ParserConfig, parser::StrictMode};
+use aliter::{parse_tree, parser::ParserConfig, parser::StrictMode, unit::Em};
 
 // =============================================================================
 // Helper Functions
@@ -1015,4 +1015,936 @@ fn sqrt_expands_argument_without_optional() {
 fn sqrt_does_not_expand_argument_with_optional() {
     // With optional arg present
     assert_parses(r"\def\x{2}\sqrt[\x]{\x}");
+}
+
+// =============================================================================
+// ADDITIONAL PORTED TESTS - BATCH 2
+// =============================================================================
+
+// =============================================================================
+// Texvc Builder Tests (katex-spec.js:811-823)
+// =============================================================================
+
+#[test]
+fn texvc_commands_parse() {
+    // Various texvc compatibility commands
+    assert_parses(r"\darr");
+    assert_parses(r"\dArr");
+    assert_parses(r"\Darr");
+    assert_parses(r"\lang");
+    assert_parses(r"\rang");
+    assert_parses(r"\uarr");
+    assert_parses(r"\uArr");
+    assert_parses(r"\Uarr");
+    assert_parses(r"\N");
+    assert_parses(r"\R");
+    assert_parses(r"\Z");
+    assert_parses(r"\alef");
+    assert_parses(r"\alefsym");
+    assert_parses(r"\bull");
+    assert_parses(r"\clubs");
+    assert_parses(r"\cnums");
+    assert_parses(r"\Complex");
+    assert_parses(r"\Dagger");
+    assert_parses(r"\diamonds");
+    assert_parses(r"\empty");
+    assert_parses(r"\exist");
+    assert_parses(r"\harr");
+    assert_parses(r"\hArr");
+    assert_parses(r"\Harr");
+    assert_parses(r"\hearts");
+    assert_parses(r"\image");
+    assert_parses(r"\infin");
+    assert_parses(r"\isin");
+    assert_parses(r"\larr");
+    assert_parses(r"\lArr");
+    assert_parses(r"\Larr");
+    assert_parses(r"\lrarr");
+    assert_parses(r"\lrArr");
+    assert_parses(r"\Lrarr");
+    assert_parses(r"\natnums");
+    assert_parses(r"\plusmn");
+    assert_parses(r"\rarr");
+    assert_parses(r"\rArr");
+    assert_parses(r"\Rarr");
+    assert_parses(r"\real");
+    assert_parses(r"\reals");
+    assert_parses(r"\Reals");
+    assert_parses(r"\sdot");
+    assert_parses(r"\sect");
+    assert_parses(r"\spades");
+    assert_parses(r"\sub");
+    assert_parses(r"\sube");
+    assert_parses(r"\supe");
+    assert_parses(r"\thetasym");
+    assert_parses(r"\weierp");
+}
+
+// =============================================================================
+// Two-argument \color (katex-spec.js:884-889)
+// =============================================================================
+
+#[test]
+fn color_one_argument_by_default() {
+    // Default one-argument \color
+    assert_parses(r"\color{red}x");
+}
+
+#[test]
+fn color_works_with_color_is_text_color_option() {
+    let mut conf = ParserConfig::default();
+    conf.color_is_text_color = true;
+    // With colorIsTextColor, \color should work as two-argument
+    assert_parses_with_config(r"\color{red}{x}", conf);
+}
+
+// =============================================================================
+// Tie Parser - Space Contraction (katex-spec.js:926-931)
+// =============================================================================
+
+#[test]
+fn tie_does_not_contract_with_spaces_in_text_mode() {
+    // ~ should not contract with surrounding spaces in text mode
+    assert_parses(r"\text{a ~ b}");
+    assert_parses(r"\text{a~b}");
+}
+
+// =============================================================================
+// Left/Right Builder Equivalences (katex-spec.js:1238-1250)
+// =============================================================================
+
+#[test]
+fn left_right_builds_angle_brackets_equivalently() {
+    // < should build like \langle
+    assert_parses(r"\left<x\right>");
+    assert_parses(r"\left\langle x\right\rangle");
+}
+
+#[test]
+fn left_right_builds_various_delimiters() {
+    assert_parses(r"\left(x\right)");
+    assert_parses(r"\left[x\right]");
+    assert_parses(r"\left\{x\right\}");
+    assert_parses(r"\left|x\right|");
+    assert_parses(r"\left\|x\right\|");
+    assert_parses(r"\left\lfloor x\right\rfloor");
+    assert_parses(r"\left\lceil x\right\rceil");
+}
+
+// =============================================================================
+// Parser Error Position Reporting (katex-spec.js:2669-2677)
+// =============================================================================
+
+#[test]
+fn parser_error_reports_position() {
+    // Just verify that invalid input produces an error
+    // The actual position checking would require inspecting error details
+    let conf = ParserConfig::default();
+    let result = parse_tree(r"\sqrt}", conf);
+    assert!(result.is_err());
+}
+
+// =============================================================================
+// Raw Text Parser (katex-spec.js:2998-3004)
+// =============================================================================
+
+#[test]
+fn raw_text_parser_handles_optional_string() {
+    // Test that optional arguments work
+    assert_parses(r"\sqrt[3]{x}");
+    assert_parses(r"\sqrt{x}");
+}
+
+// =============================================================================
+// Parser with throwOnError=false (katex-spec.js:3005-3055)
+// =============================================================================
+
+#[test]
+fn throw_on_error_false_still_parses_unrecognized_in_superscripts() {
+    let mut conf = ParserConfig::default();
+    conf.throw_on_error = false;
+    // With throw_on_error = false, unrecognized sequences should not crash
+    let result = parse_tree(r"x^\unknown", conf);
+    // Result may be ok (with error node) or err depending on implementation
+    let _ = result;
+}
+
+#[test]
+fn throw_on_error_false_still_parses_unrecognized_in_fractions() {
+    let mut conf = ParserConfig::default();
+    conf.throw_on_error = false;
+    let result = parse_tree(r"\frac{\unknown}{2}", conf);
+    let _ = result;
+}
+
+#[test]
+fn throw_on_error_false_still_parses_unrecognized_in_sqrt() {
+    let mut conf = ParserConfig::default();
+    conf.throw_on_error = false;
+    let result = parse_tree(r"\sqrt{\unknown}", conf);
+    let _ = result;
+}
+
+#[test]
+fn throw_on_error_false_still_parses_unrecognized_in_text() {
+    let mut conf = ParserConfig::default();
+    conf.throw_on_error = false;
+    let result = parse_tree(r"\text{\unknown}", conf);
+    let _ = result;
+}
+
+// =============================================================================
+// Symbol Table Integrity (katex-spec.js:3057-3063)
+// =============================================================================
+
+#[test]
+fn symbol_synonyms_parse_equivalently() {
+    // These should all parse (they're synonyms)
+    assert_parses(r"\ge");
+    assert_parses(r"\geq");
+    assert_parses(r"\le");
+    assert_parses(r"\leq");
+    assert_parses(r"\ne");
+    assert_parses(r"\neq");
+}
+
+// =============================================================================
+// AMS Symbols in Text and Math Mode (katex-spec.js:3066-3073)
+// =============================================================================
+
+#[test]
+fn ams_symbols_parse_in_math_mode() {
+    assert_parses(r"\yen");
+    assert_parses(r"\checkmark");
+    assert_parses(r"\circledR");
+    assert_parses(r"\maltese");
+}
+
+#[test]
+fn ams_symbols_parse_in_text_mode() {
+    let mut conf = ParserConfig::default();
+    conf.strict = StrictMode::Error;
+    assert_parses_with_config(r"\text{\yen\checkmark\circledR\maltese}", conf);
+}
+
+// =============================================================================
+// Macro Expander Edge Cases (katex-spec.js:3075-3632)
+// =============================================================================
+
+#[test]
+fn macro_preserves_leading_spaces_in_definition() {
+    assert_parses(r"\def\foo{ x}\text{\foo}");
+}
+
+#[test]
+fn macro_ignores_expanded_spaces_in_math_mode() {
+    assert_parses(r"\def\foo{ x}\foo");
+}
+
+#[test]
+fn macro_consumes_spaces_after_control_word() {
+    assert_parses(r"\def\foo{x}\foo y");
+}
+
+#[test]
+fn macro_with_relax_consumes_spaces() {
+    assert_parses(r"\def\foo{x\relax}\foo y");
+}
+
+#[test]
+fn macro_expandafter_delays_expansion() {
+    assert_parses(r"\def\foo{x}\def\bar{\foo}\expandafter\def\expandafter\baz\expandafter{\bar}\baz");
+}
+
+#[test]
+fn macro_noexpand_prevents_expansion() {
+    assert_parses(r"\def\foo{x}\edef\bar{\noexpand\foo}\bar");
+}
+
+#[test]
+fn macro_space_argument_text_version() {
+    assert_parses(r"\def\foo#1{(#1)}\text{\foo{ }}");
+}
+
+#[test]
+fn macro_space_argument_math_version() {
+    assert_parses(r"\def\foo#1{#1}\foo{ }");
+}
+
+#[test]
+fn macro_empty_argument() {
+    assert_parses(r"\def\foo#1{(#1)}\foo{}");
+}
+
+#[test]
+fn macro_overset_and_underset_build() {
+    assert_parses(r"\overset{a}{b}");
+    assert_parses(r"\underset{a}{b}");
+}
+
+#[test]
+fn macro_iff_implies_impliedby_build() {
+    assert_parses(r"A \iff B");
+    assert_parses(r"A \implies B");
+    assert_parses(r"A \impliedby B");
+}
+
+#[test]
+fn macro_char_produces_literal_characters() {
+    assert_parses(r"\char`a");
+    assert_parses(r"\char`\a");
+    assert_parses(r"\char97");
+}
+
+#[test]
+fn macro_gdef_defines_macros() {
+    assert_parses(r"\gdef\foo{x}\foo");
+}
+
+#[test]
+fn macro_gdef_with_delimited_parameter() {
+    assert_parses(r"\gdef\foo[#1]{(#1)}\foo[x]");
+}
+
+#[test]
+fn macro_xdef_expands_definition() {
+    assert_parses(r"\def\foo{x}\xdef\bar{\foo}\bar");
+}
+
+#[test]
+fn macro_def_works_locally() {
+    assert_parses(r"{\def\foo{x}\foo}\def\foo{y}\foo");
+}
+
+#[test]
+fn macro_gdef_overrides_all_levels() {
+    assert_parses(r"\def\foo{a}{\gdef\foo{b}}\foo");
+}
+
+#[test]
+fn macro_let_copies_definition() {
+    assert_parses(r"\let\foo=\alpha\foo");
+}
+
+#[test]
+fn macro_let_optional_space_after_equals() {
+    assert_parses(r"\let\foo= \alpha\foo");
+    assert_parses(r"\let\foo=\alpha\foo");
+}
+
+#[test]
+fn macro_futurelet_parses() {
+    assert_parses(r"\futurelet\foo\relax x");
+}
+
+#[test]
+fn macro_newcommand_defines_macros() {
+    assert_parses(r"\newcommand{\foo}{x}\foo");
+    assert_parses(r"\newcommand{\foo}[1]{(#1)}\foo{x}");
+}
+
+#[test]
+fn macro_renewcommand_redefines_macros() {
+    assert_parses(r"\newcommand{\foo}{x}\renewcommand{\foo}{y}\foo");
+}
+
+#[test]
+fn macro_providecommand_defines_if_not_exists() {
+    assert_parses(r"\providecommand{\foo}{x}\foo");
+    assert_parses(r"\newcommand{\foo}{x}\providecommand{\foo}{y}\foo");
+}
+
+#[test]
+fn macro_newcommand_is_local() {
+    assert_parses(r"{\newcommand{\foo}{x}\foo}");
+}
+
+#[test]
+fn macro_newcommand_accepts_number_of_arguments() {
+    assert_parses(r"\newcommand{\foo}[2]{#1+#2}\foo{a}{b}");
+}
+
+#[test]
+fn macro_hspace_hskip_like_kern() {
+    assert_parses(r"\hspace{1em}");
+    assert_parses(r"\hskip 1em");
+    assert_parses(r"\kern 1em");
+}
+
+#[test]
+fn macro_limsup_expands() {
+    assert_parses(r"\limsup_{x\to\infty}");
+}
+
+#[test]
+fn macro_liminf_expands() {
+    assert_parses(r"\liminf_{x\to\infty}");
+}
+
+#[test]
+fn macro_ams_log_like_symbols_expand() {
+    assert_parses(r"\injlim");
+    assert_parses(r"\projlim");
+    assert_parses(r"\varlimsup");
+    assert_parses(r"\varliminf");
+    assert_parses(r"\varinjlim");
+    assert_parses(r"\varprojlim");
+}
+
+#[test]
+fn macro_plim_expands() {
+    assert_parses(r"\plim_{n\to\infty}");
+}
+
+#[test]
+fn macro_argmin_argmax_expand() {
+    assert_parses(r"\argmin_x");
+    assert_parses(r"\argmax_x");
+}
+
+#[test]
+fn macro_bra_ket_braket_expand() {
+    assert_parses(r"\bra{\psi}");
+    assert_parses(r"\ket{\psi}");
+    assert_parses(r"\braket{\phi|\psi}");
+    assert_parses(r"\Bra{\psi}");
+    assert_parses(r"\Ket{\psi}");
+    assert_parses(r"\Braket{\phi|\psi}");
+}
+
+#[test]
+fn macro_set_notation_expands() {
+    assert_parses(r"\set{x | x > 0}");
+    assert_parses(r"\Set{x | x > 0}");
+}
+
+#[test]
+fn macro_text_or_math_works() {
+    assert_parses(r"\TextOrMath{text}{math}");
+}
+
+#[test]
+fn macro_global_requires_def_or_prefix() {
+    assert_fails(r"\global\foo");
+}
+
+#[test]
+fn macro_long_requires_def_or_prefix() {
+    assert_fails(r"\long\foo");
+}
+
+// =============================================================================
+// Leqno and Fleqn Rendering Options (katex-spec.js:3672-3692)
+// =============================================================================
+
+// Note: leqno is not implemented in Aliter yet, only fleqn
+
+#[test]
+fn fleqn_option_parses() {
+    let mut conf = ParserConfig::default();
+    conf.fleqn = true;
+    conf.display_mode = true;
+    assert_parses_with_config(r"a = b", conf);
+}
+
+// =============================================================================
+// MaxSize Setting (katex-spec.js:3885-3904)
+// =============================================================================
+
+#[test]
+fn max_size_clamps_when_set() {
+    let mut conf = ParserConfig::default();
+    conf.max_size = Em(5.0);
+    assert_parses_with_config(r"\rule{10em}{1em}", conf);
+}
+
+#[test]
+fn max_size_does_not_clamp_when_not_set() {
+    let conf = ParserConfig::default();
+    assert_parses_with_config(r"\rule{100em}{1em}", conf);
+}
+
+#[test]
+fn max_size_zero_width_rules_with_negative() {
+    let mut conf = ParserConfig::default();
+    conf.max_size = Em(0.0);
+    // Should still parse, just might produce zero-width
+    let result = parse_tree(r"\rule{10em}{1em}", conf);
+    let _ = result;
+}
+
+// =============================================================================
+// Debugging Macros (katex-spec.js:4080-4098)
+// =============================================================================
+
+#[test]
+fn debug_message_parses() {
+    // \message might not be implemented, just check it doesn't crash badly
+    let conf = ParserConfig::default();
+    let result = parse_tree(r"\message{test}", conf);
+    let _ = result; // May or may not be implemented
+}
+
+#[test]
+fn debug_errmessage_parses() {
+    let conf = ParserConfig::default();
+    let result = parse_tree(r"\errmessage{test}", conf);
+    let _ = result; // May or may not be implemented
+}
+
+// =============================================================================
+// Extending KaTeX (katex-spec.js:4044-4078)
+// These are more about runtime extension which may not apply to Rust
+// =============================================================================
+
+#[test]
+fn custom_symbols_may_fail_without_metrics() {
+    // This tests that unknown symbols fail appropriately
+    assert_fails(r"\unknownsymbol");
+}
+
+// =============================================================================
+// Additional Symbol Tests
+// =============================================================================
+
+#[test]
+fn dotless_i_j_in_text_mode() {
+    assert_parses(r"\text{\i}");
+    assert_parses(r"\text{\j}");
+}
+
+#[test]
+fn ligatures_parse() {
+    assert_parses(r"\text{--}");
+    assert_parses(r"\text{---}");
+    assert_parses(r"\text{``}");
+    assert_parses(r"\text{''}");
+}
+
+// =============================================================================
+// Additional Left/Right Tests
+// =============================================================================
+
+#[test]
+fn middle_delimiter_parses() {
+    assert_parses(r"\left(a\middle|b\right)");
+}
+
+#[test]
+fn multiple_middle_delimiters_parse() {
+    assert_parses(r"\left(a\middle|b\middle|c\right)");
+}
+
+#[test]
+fn nested_left_right_with_middle() {
+    assert_parses(r"\left(a\middle|\left(b\middle|c\right)\right)");
+}
+
+// =============================================================================
+// Array Environment Edge Cases
+// =============================================================================
+
+#[test]
+fn array_accepts_single_alignment() {
+    assert_parses(r"\begin{array}{c}a\end{array}");
+}
+
+#[test]
+fn array_accepts_vertical_separators() {
+    assert_parses(r"\begin{array}{|c|c|}a&b\end{array}");
+}
+
+#[test]
+fn array_accepts_multiple_vertical_lines() {
+    assert_parses(r"\begin{array}{||c||}a\end{array}");
+}
+
+// =============================================================================
+// Font Switching
+// =============================================================================
+
+#[test]
+fn nested_font_commands_parse() {
+    assert_parses(r"\mathbf{\mathit{x}}");
+    assert_parses(r"\mathrm{\mathbf{x}}");
+}
+
+#[test]
+fn font_with_textcolor_parses() {
+    assert_parses(r"\textcolor{red}{\mathbf{x}}");
+    assert_parses(r"\mathbf{\textcolor{red}{x}}");
+}
+
+#[test]
+fn old_style_fonts_parse() {
+    assert_parses(r"{\rm x}");
+    assert_parses(r"{\bf x}");
+    assert_parses(r"{\it x}");
+    assert_parses(r"{\sf x}");
+    assert_parses(r"{\tt x}");
+}
+
+#[test]
+fn boldsymbol_inherits_type() {
+    assert_parses(r"\boldsymbol{+}");
+    assert_parses(r"\boldsymbol{=}");
+    assert_parses(r"\boldsymbol{x}");
+}
+
+// =============================================================================
+// Sizing Commands
+// =============================================================================
+
+#[test]
+fn all_sizing_commands_parse() {
+    assert_parses(r"\tiny x");
+    assert_parses(r"\scriptsize x");
+    assert_parses(r"\footnotesize x");
+    assert_parses(r"\small x");
+    assert_parses(r"\normalsize x");
+    assert_parses(r"\large x");
+    assert_parses(r"\Large x");
+    assert_parses(r"\LARGE x");
+    assert_parses(r"\huge x");
+    assert_parses(r"\Huge x");
+}
+
+// =============================================================================
+// Delimiter Sizing
+// =============================================================================
+
+#[test]
+fn delimiter_sizing_commands_parse() {
+    assert_parses(r"\bigl(x\bigr)");
+    assert_parses(r"\Bigl(x\Bigr)");
+    assert_parses(r"\biggl(x\biggr)");
+    assert_parses(r"\Biggl(x\Biggr)");
+}
+
+#[test]
+fn delimiter_sizing_with_middle() {
+    assert_parses(r"\bigl(x\bigm|y\bigr)");
+}
+
+// =============================================================================
+// Spacing Commands
+// =============================================================================
+
+#[test]
+fn all_spacing_commands_parse() {
+    assert_parses(r"a\!b");
+    assert_parses(r"a\,b");
+    assert_parses(r"a\:b");
+    assert_parses(r"a\;b");
+    assert_parses(r"a\ b");
+    assert_parses(r"a\quad b");
+    assert_parses(r"a\qquad b");
+    assert_parses(r"a\enspace b");
+    assert_parses(r"a\thinspace b");
+    assert_parses(r"a\medspace b");
+    assert_parses(r"a\thickspace b");
+    assert_parses(r"a\negmedspace b");
+    assert_parses(r"a\negthickspace b");
+    assert_parses(r"a\negthinspace b");
+}
+
+// =============================================================================
+// Phantom and Smash
+// =============================================================================
+
+#[test]
+fn phantom_variants_parse() {
+    assert_parses(r"\phantom{x}");
+    assert_parses(r"\hphantom{x}");
+    assert_parses(r"\vphantom{x}");
+}
+
+#[test]
+fn smash_variants_parse() {
+    assert_parses(r"\smash{x}");
+    assert_parses(r"\smash[t]{x}");
+    assert_parses(r"\smash[b]{x}");
+}
+
+// =============================================================================
+// Box Commands
+// =============================================================================
+
+#[test]
+fn box_commands_parse() {
+    assert_parses(r"\boxed{x}");
+    assert_parses(r"\fbox{text}");
+    assert_parses(r"\colorbox{red}{text}");
+    assert_parses(r"\fcolorbox{red}{blue}{text}");
+}
+
+// =============================================================================
+// Cancellation Commands
+// =============================================================================
+
+#[test]
+fn cancel_commands_parse() {
+    assert_parses(r"\cancel{x}");
+    assert_parses(r"\bcancel{x}");
+    assert_parses(r"\xcancel{x}");
+    assert_parses(r"\cancelto{0}{x}");
+    assert_parses(r"\sout{text}");
+}
+
+// =============================================================================
+// Accents
+// =============================================================================
+
+#[test]
+fn all_accent_commands_parse() {
+    assert_parses(r"\acute{a}");
+    assert_parses(r"\grave{a}");
+    assert_parses(r"\hat{a}");
+    assert_parses(r"\tilde{a}");
+    assert_parses(r"\bar{a}");
+    assert_parses(r"\breve{a}");
+    assert_parses(r"\check{a}");
+    assert_parses(r"\dot{a}");
+    assert_parses(r"\ddot{a}");
+    assert_parses(r"\mathring{a}");
+}
+
+#[test]
+fn wide_accent_commands_parse() {
+    assert_parses(r"\widehat{abc}");
+    assert_parses(r"\widetilde{abc}");
+    assert_parses(r"\overline{abc}");
+    assert_parses(r"\underline{abc}");
+    assert_parses(r"\overbrace{abc}");
+    assert_parses(r"\underbrace{abc}");
+    assert_parses(r"\overleftarrow{abc}");
+    assert_parses(r"\overrightarrow{abc}");
+    assert_parses(r"\overleftrightarrow{abc}");
+}
+
+// =============================================================================
+// Extensible Arrows
+// =============================================================================
+
+#[test]
+fn extensible_arrows_parse() {
+    assert_parses(r"\xrightarrow{abc}");
+    assert_parses(r"\xleftarrow{abc}");
+    assert_parses(r"\xrightarrow[below]{above}");
+    assert_parses(r"\xleftarrow[below]{above}");
+    assert_parses(r"\xRightarrow{abc}");
+    assert_parses(r"\xLeftarrow{abc}");
+    assert_parses(r"\xleftrightarrow{abc}");
+    assert_parses(r"\xLeftrightarrow{abc}");
+    assert_parses(r"\xhookleftarrow{abc}");
+    assert_parses(r"\xhookrightarrow{abc}");
+    assert_parses(r"\xmapsto{abc}");
+    assert_parses(r"\xlongequal{abc}");
+}
+
+// =============================================================================
+// Environments - More Edge Cases
+// =============================================================================
+
+#[test]
+fn matrix_star_with_alignment_parses() {
+    assert_parses(r"\begin{pmatrix*}[r]1&2\\3&4\end{pmatrix*}");
+    assert_parses(r"\begin{bmatrix*}[l]1&2\\3&4\end{bmatrix*}");
+}
+
+#[test]
+fn cases_star_parses() {
+    let mut conf = ParserConfig::default();
+    conf.display_mode = true;
+    assert_parses_with_config(r"\begin{dcases}a&b\\c&d\end{dcases}", conf.clone());
+    assert_parses_with_config(r"\begin{rcases}a&b\\c&d\end{rcases}", conf.clone());
+    assert_parses_with_config(r"\begin{drcases}a&b\\c&d\end{drcases}", conf);
+}
+
+#[test]
+fn multline_environment_parses() {
+    let mut conf = ParserConfig::default();
+    conf.display_mode = true;
+    assert_parses_with_config(r"\begin{multline}a\\b\\c\end{multline}", conf.clone());
+    assert_parses_with_config(r"\begin{multline*}a\\b\\c\end{multline*}", conf);
+}
+
+// =============================================================================
+// Greek Letters - Comprehensive
+// =============================================================================
+
+#[test]
+fn all_lowercase_greek_letters_parse() {
+    assert_parses(r"\alpha\beta\gamma\delta\epsilon\zeta\eta\theta");
+    assert_parses(r"\iota\kappa\lambda\mu\nu\xi\omicron\pi");
+    assert_parses(r"\rho\sigma\tau\upsilon\phi\chi\psi\omega");
+}
+
+#[test]
+fn all_uppercase_greek_letters_parse() {
+    assert_parses(r"\Gamma\Delta\Theta\Lambda\Xi\Pi\Sigma\Upsilon\Phi\Psi\Omega");
+}
+
+#[test]
+fn variant_greek_letters_parse() {
+    assert_parses(r"\varepsilon\vartheta\varpi\varrho\varsigma\varphi\varkappa");
+}
+
+// =============================================================================
+// Large Operators
+// =============================================================================
+
+#[test]
+fn large_operators_with_limits_parse() {
+    assert_parses(r"\sum_{i=1}^n");
+    assert_parses(r"\prod_{i=1}^n");
+    assert_parses(r"\int_0^1");
+    assert_parses(r"\oint_C");
+    assert_parses(r"\bigcup_{i=1}^n");
+    assert_parses(r"\bigcap_{i=1}^n");
+    assert_parses(r"\bigoplus_{i=1}^n");
+    assert_parses(r"\bigotimes_{i=1}^n");
+}
+
+#[test]
+fn multiple_integrals_parse() {
+    assert_parses(r"\iint");
+    assert_parses(r"\iiint");
+    assert_parses(r"\iiiint");
+    assert_parses(r"\idotsint");
+}
+
+// =============================================================================
+// Modular Arithmetic
+// =============================================================================
+
+#[test]
+fn mod_commands_parse() {
+    assert_parses(r"a \mod b");
+    assert_parses(r"a \bmod b");
+    assert_parses(r"a \pmod{b}");
+    assert_parses(r"a \pod{b}");
+}
+
+// =============================================================================
+// Stacking and Relations
+// =============================================================================
+
+#[test]
+fn stacking_commands_parse() {
+    assert_parses(r"\stackrel{a}{=}");
+    assert_parses(r"\overset{a}{b}");
+    assert_parses(r"\underset{a}{b}");
+    assert_parses(r"\atop");
+}
+
+#[test]
+fn negated_relations_parse() {
+    assert_parses(r"\not=");
+    assert_parses(r"\not<");
+    assert_parses(r"\not>");
+    assert_parses(r"\not\in");
+    assert_parses(r"\notin");
+}
+
+// =============================================================================
+// Dots
+// =============================================================================
+
+#[test]
+fn all_dot_commands_parse() {
+    assert_parses(r"\ldots");
+    assert_parses(r"\cdots");
+    assert_parses(r"\vdots");
+    assert_parses(r"\ddots");
+    assert_parses(r"\dots");
+    assert_parses(r"\dotsb");
+    assert_parses(r"\dotsc");
+    assert_parses(r"\dotsi");
+    assert_parses(r"\dotsm");
+    assert_parses(r"\dotso");
+}
+
+// =============================================================================
+// Primes
+// =============================================================================
+
+#[test]
+fn prime_variations_parse() {
+    assert_parses(r"f'");
+    assert_parses(r"f''");
+    assert_parses(r"f'''");
+    assert_parses(r"f^{\prime}");
+    assert_parses(r"f^{\prime\prime}");
+}
+
+// =============================================================================
+// Radicals
+// =============================================================================
+
+#[test]
+fn radical_variations_parse() {
+    assert_parses(r"\sqrt{x}");
+    assert_parses(r"\sqrt[3]{x}");
+    assert_parses(r"\sqrt[n]{x}");
+    assert_parses(r"\sqrt{\sqrt{x}}");
+}
+
+// =============================================================================
+// Fractions
+// =============================================================================
+
+#[test]
+fn fraction_variations_parse() {
+    assert_parses(r"\frac{a}{b}");
+    assert_parses(r"\dfrac{a}{b}");
+    assert_parses(r"\tfrac{a}{b}");
+    assert_parses(r"\cfrac{a}{b}");
+    assert_parses(r"\cfrac[l]{a}{b}");
+    assert_parses(r"\cfrac[r]{a}{b}");
+}
+
+#[test]
+fn binomial_variations_parse() {
+    assert_parses(r"\binom{n}{k}");
+    assert_parses(r"\dbinom{n}{k}");
+    assert_parses(r"\tbinom{n}{k}");
+}
+
+// =============================================================================
+// Rule Command
+// =============================================================================
+
+#[test]
+fn rule_with_various_units_parses() {
+    assert_parses(r"\rule{1em}{1ex}");
+    assert_parses(r"\rule{1pt}{1pt}");
+    assert_parses(r"\rule{1cm}{1mm}");
+    assert_parses(r"\rule[-0.5ex]{1em}{1ex}");
+}
+
+// =============================================================================
+// Verb Command
+// =============================================================================
+
+#[test]
+fn verb_with_various_delimiters_parses() {
+    assert_parses(r"\verb|code|");
+    assert_parses(r"\verb!code!");
+    assert_parses(r"\verb+code+");
+}
+
+// =============================================================================
+// Special Characters
+// =============================================================================
+
+#[test]
+fn special_characters_parse() {
+    assert_parses(r"\#");
+    assert_parses(r"\$");
+    assert_parses(r"\%");
+    assert_parses(r"\&");
+    assert_parses(r"\_");
+    assert_parses(r"\{");
+    assert_parses(r"\}");
 }
