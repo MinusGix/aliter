@@ -23,8 +23,10 @@ use crate::{
 };
 
 // (?i) must be at the start for Rust's regex engine
+// Matches: #abc (3-digit hex), #aabbcc or aabbcc (6-digit hex), colorname
+// Note: 3-digit hex REQUIRES #, 6-digit hex allows optional #
 static COLOR_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new("(?i)^(?:#?(?:[a-f0-9]{3}|[a-f0-9]{6})|[a-z]+)$").unwrap()
+    Regex::new("(?i)^(?:#[a-f0-9]{3}|#?[a-f0-9]{6}|[a-z]+)$").unwrap()
 });
 
 // static SIX_HEX_COLOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^(?i)[0-9a-f]{6}").unwrap());
@@ -113,6 +115,13 @@ pub enum ParseError {
     CommentWithoutNewline,
     /// Too many columns in array (strict mode)
     TooManyArrayColumns,
+
+    /// `\left` without matching `\right`
+    MissingRight,
+    /// `\middle` without preceding `\left`
+    MiddleWithoutLeft,
+    /// Invalid delimiter (e.g. not a valid delimiter character)
+    InvalidDelimiter,
 }
 
 /// Configuration options for parsing.
@@ -759,7 +768,7 @@ impl<'a, 'f> Parser<'a, 'f> {
             break_on_token_text,
         };
 
-        Ok((func.handler)(context, args, opt_args))
+        (func.handler)(context, args, opt_args)
     }
 
     fn parse_arguments(
@@ -1074,7 +1083,14 @@ impl<'a, 'f> Parser<'a, 'f> {
         self.gullet.consume_spaces()?;
 
         let res = if !optional && self.gullet.future()?.content != "{" {
-            Some(self.parse_regex_group(&SIZE_GROUP_REGEX)?)
+            Some(self.parse_regex_group(&SIZE_GROUP_REGEX).map_err(|e| {
+                // Convert InvalidRegexMode to InvalidSize for better error messages
+                if matches!(e, ParseError::InvalidRegexMode) {
+                    ParseError::InvalidSize
+                } else {
+                    e
+                }
+            })?)
         } else {
             self.parse_string_group(optional)?
         };

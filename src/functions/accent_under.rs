@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::parse_node::{AccentUnderNode, NodeInfo, ParseNode, ParseNodeType};
+use crate::{
+    parse_node::{AccentUnderNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
+};
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -32,15 +35,15 @@ fn accent_under_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let base = args[0].clone();
-    ParseNode::AccentUnder(AccentUnderNode {
+    Ok(ParseNode::AccentUnder(AccentUnderNode {
         label: ctx.func_name.into_owned(),
         is_stretchy: None,
         is_shifty: None,
         base: Box::new(base),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 // TODO: html/mathml

@@ -3,6 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     html,
     parse_node::{FontNode, MClassNode, NodeInfo, OrdGroupNode, ParseNode, ParseNodeType},
+    parser::ParseError,
     util, Options,
 };
 
@@ -26,11 +27,11 @@ pub fn add_functions(fns: &mut Functions) {
                 x => Cow::Owned(x[1..].to_string()),
             };
 
-            ParseNode::Font(FontNode {
+            Ok(ParseNode::Font(FontNode {
                 font: func,
                 body: Box::new(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -68,7 +69,7 @@ pub fn add_functions(fns: &mut Functions) {
             let is_character_box = util::is_character_box(&body);
             // amsbsy.sty's \boldsymbol uses \binrel spacing to inherit the
             // argument's bin|rel|ord status
-            ParseNode::MClass(MClassNode {
+            Ok(ParseNode::MClass(MClassNode {
                 m_class: bin_rel_class(&body),
                 body: vec![ParseNode::Font(FontNode {
                     font: Cow::Borrowed("boldsymbol"),
@@ -77,7 +78,7 @@ pub fn add_functions(fns: &mut Functions) {
                 })],
                 is_character_box,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -97,7 +98,7 @@ pub fn add_functions(fns: &mut Functions) {
                 .unwrap();
             let style = format!("math{}", &ctx.func_name[1..]);
 
-            ParseNode::Font(FontNode {
+            Ok(ParseNode::Font(FontNode {
                 font: Cow::Owned(style),
                 body: Box::new(ParseNode::OrdGroup(OrdGroupNode {
                     body,
@@ -105,7 +106,7 @@ pub fn add_functions(fns: &mut Functions) {
                     info: NodeInfo::new_mode(ctx.parser.mode()),
                 })),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),

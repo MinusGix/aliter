@@ -7,6 +7,7 @@ use crate::{
     mathml,
     mathml_tree::{MathNode, MathNodeType},
     parse_node::{NodeInfo, ParseNode, ParseNodeType, SizingNode},
+    parser::ParseError,
     tree::ClassList,
     unit::make_em,
     Options,
@@ -37,11 +38,11 @@ pub fn add_functions(fns: &mut Functions) {
                 .dispatch_parse_expression(false, ctx.break_on_token_text)
                 .unwrap();
 
-            ParseNode::Sizing(SizingNode {
+            Ok(ParseNode::Sizing(SizingNode {
                 size: SIZE_FUNCS.iter().position(|&s| s == ctx.func_name).unwrap() + 1,
                 body,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),

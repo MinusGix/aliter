@@ -10,6 +10,7 @@ use crate::{
     html, mathml,
     mathml_tree::{self, MathNode, MathNodeType, MathmlNode},
     parse_node::{NodeInfo, OpNode, ParseNode, ParseNodeType},
+    parser::ParseError,
     style::{StyleId, DISPLAY_STYLE},
     tree::ClassList,
     unit::make_em,
@@ -46,7 +47,7 @@ pub fn add_functions(fns: &mut Functions) {
                 Some(Cow::Owned(ctx.func_name.to_string()))
             };
 
-            ParseNode::Op(OpNode {
+            Ok(ParseNode::Op(OpNode {
                 limits: true,
                 always_handle_sup_sub: None,
                 suppress_base_shift: None,
@@ -55,7 +56,7 @@ pub fn add_functions(fns: &mut Functions) {
                 name: func_name,
                 body: None,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -101,7 +102,7 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Op, 1).with_primitive(true),
         handler: Box::new(|ctx, args, _opt_args| {
             let body = args[0].clone();
-            ParseNode::Op(OpNode {
+            Ok(ParseNode::Op(OpNode {
                 limits: false,
                 always_handle_sup_sub: None,
                 suppress_base_shift: None,
@@ -110,7 +111,7 @@ pub fn add_functions(fns: &mut Functions) {
                 name: None,
                 body: Some(ord_argument(body)),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -124,7 +125,7 @@ pub fn add_functions(fns: &mut Functions) {
     let spec = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Op, 0),
         handler: Box::new(|ctx, _, _| {
-            ParseNode::Op(OpNode {
+            Ok(ParseNode::Op(OpNode {
                 limits: false,
                 always_handle_sup_sub: None,
                 suppress_base_shift: None,
@@ -133,7 +134,7 @@ pub fn add_functions(fns: &mut Functions) {
                 name: Some(Cow::Owned(ctx.func_name.to_string())),
                 body: None,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -156,7 +157,7 @@ pub fn add_functions(fns: &mut Functions) {
     let spec = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Op, 0),
         handler: Box::new(|ctx, _, _| {
-            ParseNode::Op(OpNode {
+            Ok(ParseNode::Op(OpNode {
                 limits: true,
                 always_handle_sup_sub: None,
                 suppress_base_shift: None,
@@ -165,7 +166,7 @@ pub fn add_functions(fns: &mut Functions) {
                 name: Some(Cow::Owned(ctx.func_name.to_string())),
                 body: None,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -199,7 +200,7 @@ pub fn add_functions(fns: &mut Functions) {
                 Cow::Owned(ctx.func_name.to_string())
             };
 
-            ParseNode::Op(OpNode {
+            Ok(ParseNode::Op(OpNode {
                 limits: false,
                 always_handle_sup_sub: None,
                 suppress_base_shift: None,
@@ -208,7 +209,7 @@ pub fn add_functions(fns: &mut Functions) {
                 name: Some(func_name),
                 body: None,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),

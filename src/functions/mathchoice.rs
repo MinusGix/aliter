@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::parse_node::{MathChoiceNode, NodeInfo, ParseNode, ParseNodeType};
+use crate::parser::ParseError;
 use crate::style::{DISPLAY_STYLE, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE};
 
 use super::{ord_argument, FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
@@ -50,12 +51,12 @@ fn mathchoice_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::MathChoice(MathChoiceNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::MathChoice(MathChoiceNode {
         display: ord_argument(args[0].clone()),
         text: ord_argument(args[1].clone()),
         script: ord_argument(args[2].clone()),
         script_script: ord_argument(args[3].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

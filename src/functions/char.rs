@@ -1,6 +1,7 @@
 use std::{borrow::Cow, char::REPLACEMENT_CHARACTER, sync::Arc};
 
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, TextOrdNode};
+use crate::parser::ParseError;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -21,7 +22,7 @@ fn chr_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let arg = if let ParseNode::OrdGroup(ord_group) = &args[0] {
         ord_group
     } else {
@@ -65,8 +66,8 @@ fn chr_handler(
         .collect::<String>()
     };
 
-    ParseNode::TextOrd(TextOrdNode {
+    Ok(ParseNode::TextOrd(TextOrdNode {
         text: Cow::Owned(text),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

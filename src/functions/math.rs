@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::expander::{BreakToken, Mode};
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, StylingNode};
+use crate::parser::ParseError;
 use crate::util::Style;
 
 use super::{FunctionPropSpec, FunctionSpec, Functions};
@@ -33,11 +34,11 @@ pub fn add_functions(fns: &mut Functions) {
 
             ctx.parser.switch_mode(outer_mode);
 
-            ParseNode::Styling(StylingNode {
+            Ok(ParseNode::Styling(StylingNode {
                 style: Style::Text,
                 body,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,

@@ -4,6 +4,7 @@ use crate::{
     mathml,
     mathml_tree::{MathNode, MathNodeType},
     parse_node::{NodeInfo, ParseNode, ParseNodeType, StylingNode},
+    parser::ParseError,
     tree::ClassList,
     util::Style,
 };
@@ -31,11 +32,11 @@ pub fn add_functions(fns: &mut Functions) {
                 _ => unreachable!(),
             };
 
-            ParseNode::Styling(StylingNode {
+            Ok(ParseNode::Styling(StylingNode {
                 style,
                 body,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

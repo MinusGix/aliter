@@ -7,6 +7,7 @@ use crate::html;
 use crate::mathml;
 use crate::mathml_tree::{MathNode, MathNodeType, MathmlNode, TextNode};
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, UnderlineNode};
+use crate::parser::ParseError;
 use crate::tree::ClassList;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
@@ -29,11 +30,11 @@ fn underline_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Underline(UnderlineNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Underline(UnderlineNode {
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 #[cfg(feature = "html")]

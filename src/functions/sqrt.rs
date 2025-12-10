@@ -6,6 +6,7 @@ use crate::{
     dom_tree::{CssStyle, HtmlNode, WithHtmlDomNode},
     html, mathml,
     parse_node::{NodeInfo, ParseNode, ParseNodeType, SqrtNode},
+    parser::ParseError,
     style,
     unit::make_em,
 };
@@ -19,8 +20,9 @@ use crate::tree::ClassList;
 
 pub fn add_functions(fns: &mut Functions) {
     let sqrt = Arc::new(FunctionSpec {
-        prop: FunctionPropSpec::new_num_opt_args(ParseNodeType::Sqrt, 1, 1)
-            .with_allowed_in_argument(true),
+        prop: FunctionPropSpec::new_num_opt_args(ParseNodeType::Sqrt, 1, 1),
+        // Note: sqrt does NOT have allowedInArgument - it can't be used as
+        // superscript argument without braces: 1^\sqrt{2} is invalid
         handler: Box::new(sqrt_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -34,14 +36,14 @@ fn sqrt_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let index = opt_args[0].clone().map(Box::new);
     let body = Box::new(args[0].clone());
-    ParseNode::Sqrt(SqrtNode {
+    Ok(ParseNode::Sqrt(SqrtNode {
         body,
         index,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 #[cfg(feature = "html")]

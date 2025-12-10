@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, XArrowNode};
+use crate::parser::ParseError;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -54,13 +55,13 @@ fn arrow_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let body = Box::new(args[0].clone());
     let below = opt_args.get(0).cloned().flatten().map(Box::new);
-    ParseNode::XArrow(XArrowNode {
+    Ok(ParseNode::XArrow(XArrowNode {
         label: ctx.func_name.into_owned(),
         body,
         below,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

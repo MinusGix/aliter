@@ -7,6 +7,7 @@ use crate::html;
 use crate::mathml;
 use crate::mathml_tree::{MathNode, MathNodeType, MathmlNode, TextNode};
 use crate::parse_node::{NodeInfo, OverlineNode, ParseNode, ParseNodeType};
+use crate::parser::ParseError;
 use crate::tree::ClassList;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
@@ -28,11 +29,11 @@ fn overline_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Overline(OverlineNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Overline(OverlineNode {
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 #[cfg(feature = "html")]

@@ -4,6 +4,7 @@ use crate::{
     build_common::make_span,
     html,
     parse_node::{MClassNode, NodeInfo, OpNode, ParseNode, ParseNodeType, SupSubNode},
+    parser::ParseError,
     symbols::Atom,
     util, Options,
 };
@@ -20,12 +21,12 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::MClass, 1).with_primitive(true),
         handler: Box::new(|ctx, args, _opt_args| {
             let body = args[0].clone();
-            ParseNode::MClass(MClassNode {
+            Ok(ParseNode::MClass(MClassNode {
                 m_class: format!("m{}", &ctx.func_name[5..]),
                 is_character_box: util::is_character_box(&body),
                 body: ord_argument(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),
@@ -50,12 +51,12 @@ pub fn add_functions(fns: &mut Functions) {
     let binrel = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::MClass, 2),
         handler: Box::new(|ctx, args, _opt_args| {
-            ParseNode::MClass(MClassNode {
+            Ok(ParseNode::MClass(MClassNode {
                 m_class: bin_rel_class(&args[0]),
                 body: ord_argument(args[1].clone()),
                 is_character_box: util::is_character_box(&args[1]),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -105,12 +106,12 @@ pub fn add_functions(fns: &mut Functions) {
             };
             let sup_sub = ParseNode::SupSub(sup_sub);
 
-            ParseNode::MClass(MClassNode {
+            Ok(ParseNode::MClass(MClassNode {
                 m_class,
                 is_character_box: util::is_character_box(&sup_sub),
                 body: vec![sup_sub],
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(html_builder)),

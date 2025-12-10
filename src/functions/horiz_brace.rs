@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::parse_node::{HorizBraceNode, NodeInfo, ParseNode, ParseNodeType};
+use crate::parser::ParseError;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -95,12 +96,12 @@ fn horiz_brace_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let func_name = ctx.func_name.into_owned();
-    ParseNode::HorizBrace(HorizBraceNode {
+    Ok(ParseNode::HorizBrace(HorizBraceNode {
         label: func_name.clone(),
         is_over: func_name.starts_with("\\over"),
         base: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

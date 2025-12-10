@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     parse_node::{NodeInfo, ParseNode, ParseNodeType, RuleNode},
+    parser::ParseError,
     util::ArgType,
 };
 
@@ -32,12 +33,12 @@ pub fn add_functions(fns: &mut Functions) {
                 panic!("Expected size for rule height")
             };
 
-            ParseNode::Rule(RuleNode {
+            Ok(ParseNode::Rule(RuleNode {
                 shift,
                 width: width.value,
                 height: height.value,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

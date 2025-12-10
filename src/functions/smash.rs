@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, SmashNode};
+use crate::parser::ParseError;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -97,7 +98,7 @@ fn smash_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let mut smash_height = false;
     let mut smash_depth = false;
 
@@ -132,10 +133,10 @@ fn smash_handler(
         smash_depth = true;
     }
 
-    ParseNode::Smash(SmashNode {
+    Ok(ParseNode::Smash(SmashNode {
         body: Box::new(args[0].clone()),
         smash_height,
         smash_depth,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

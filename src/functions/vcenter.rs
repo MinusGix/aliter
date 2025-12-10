@@ -7,6 +7,7 @@ use crate::{
     html, mathml,
     mathml_tree::{MathNode, MathNodeType},
     parse_node::{NodeInfo, ParseNode, ParseNodeType, VCenterNode},
+    parser::ParseError,
     tree::ClassList,
 };
 
@@ -18,10 +19,10 @@ pub fn add_functions(fns: &mut Functions) {
             .with_allowed_in_text(false)
             .with_arg_types(&[crate::util::ArgType::Original] as &[crate::util::ArgType]),
         handler: Box::new(|ctx, args, _| {
-            ParseNode::VCenter(VCenterNode {
+            Ok(ParseNode::VCenter(VCenterNode {
                 body: Box::new(args[0].clone()),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

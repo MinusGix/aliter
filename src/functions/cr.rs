@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     expander::Mode,
     parse_node::{CrNode, NodeInfo, ParseNode, ParseNodeType, SpacingNode},
+    parser::ParseError,
     util::ArgType,
 };
 
@@ -29,12 +30,12 @@ fn cr_handler(
     ctx: FunctionContext,
     _args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     if ctx.parser.mode() == Mode::Text {
-        return ParseNode::Spacing(SpacingNode {
+        return Ok(ParseNode::Spacing(SpacingNode {
             text: "\u{a0}".to_string(),
             info: NodeInfo::new_mode(Mode::Text),
-        });
+        }));
     }
     let size = opt_args[0].as_ref().map(|arg| {
         if let ParseNode::Size(size) = arg {
@@ -47,9 +48,9 @@ fn cr_handler(
     // TODO: use strict behavior
     let new_line = !ctx.parser.conf.display_mode;
 
-    ParseNode::Cr(CrNode {
+    Ok(ParseNode::Cr(CrNode {
         new_line,
         size,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

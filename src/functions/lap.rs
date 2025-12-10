@@ -6,6 +6,7 @@ use crate::{
     html, mathml,
     mathml_tree::{MathNode, MathNodeType},
     parse_node::{LapNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     tree::ClassList,
     unit::make_em,
 };
@@ -17,11 +18,11 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Lap, 1).with_allowed_in_text(true),
         handler: Box::new(|ctx, args, _opt_args| {
             let body = args[0].clone();
-            ParseNode::Lap(LapNode {
+            Ok(ParseNode::Lap(LapNode {
                 alignment: ctx.func_name[5..].to_string(),
                 body: Box::new(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

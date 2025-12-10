@@ -4,6 +4,7 @@ use crate::{
     build_common::make_glue,
     mathml_tree::SpaceNode,
     parse_node::{KernNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     unit::Em,
     util::ArgType,
 };
@@ -20,10 +21,10 @@ pub fn add_functions(fns: &mut Functions) {
             let ParseNode::Size(size) = args[0].clone() else { panic!() };
             // TODO: strict wanrings
 
-            ParseNode::Kern(KernNode {
+            Ok(ParseNode::Kern(KernNode {
                 dimension: size.value,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

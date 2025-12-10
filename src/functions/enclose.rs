@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::parse_node::{EncloseNode, NodeInfo, ParseNode, ParseNodeType};
+use crate::parser::ParseError;
 use crate::util::ArgType;
 
 use super::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
@@ -81,13 +82,13 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Enclose, 1)
             .with_arg_types(&[ArgType::HBox] as &[ArgType]),
         handler: Box::new(|ctx, args, _| {
-            ParseNode::Enclose(EncloseNode {
+            Ok(ParseNode::Enclose(EncloseNode {
                 label: "\\angl".to_string(),
                 background_color: None,
                 border_color: None,
                 body: Box::new(args[0].clone()),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -101,26 +102,26 @@ fn colorbox_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let color = match &args[0] {
         ParseNode::ColorToken(tok) => tok.color.clone(),
         _ => panic!("Expected ColorToken"),
     };
 
-    ParseNode::Enclose(EncloseNode {
+    Ok(ParseNode::Enclose(EncloseNode {
         label: ctx.func_name.into_owned(),
         background_color: Some(color),
         border_color: None,
         body: Box::new(args[1].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn fcolorbox_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let border_color = match &args[0] {
         ParseNode::ColorToken(tok) => tok.color.clone(),
         _ => panic!("Expected ColorToken"),
@@ -130,53 +131,53 @@ fn fcolorbox_handler(
         _ => panic!("Expected ColorToken"),
     };
 
-    ParseNode::Enclose(EncloseNode {
+    Ok(ParseNode::Enclose(EncloseNode {
         label: ctx.func_name.into_owned(),
         background_color: Some(background_color),
         border_color: Some(border_color),
         body: Box::new(args[2].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn fbox_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Enclose(EncloseNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Enclose(EncloseNode {
         label: "\\fbox".to_string(),
         background_color: None,
         border_color: None,
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn boxed_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Enclose(EncloseNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Enclose(EncloseNode {
         label: "\\boxed".to_string(),
         background_color: None,
         border_color: None,
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn cancel_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Enclose(EncloseNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Enclose(EncloseNode {
         label: ctx.func_name.into_owned(),
         background_color: None,
         border_color: None,
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

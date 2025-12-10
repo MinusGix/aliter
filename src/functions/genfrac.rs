@@ -12,6 +12,7 @@ use crate::{
     html,
     lexer::Token,
     parse_node::{GenFracNode, InfixNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     style::{StyleId, DISPLAY_STYLE, SCRIPT_SCRIPT_STYLE, SCRIPT_STYLE, TEXT_STYLE},
     symbols::Atom,
     unit::calculate_size,
@@ -124,7 +125,7 @@ fn genfrac_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let numer = Box::new(args[0].clone());
     let denom = Box::new(args[1].clone());
 
@@ -160,7 +161,7 @@ fn genfrac_handler(
         _ => StyleAuto::Auto,
     };
 
-    ParseNode::GenFrac(GenFracNode {
+    Ok(ParseNode::GenFrac(GenFracNode {
         continued: false,
         numer,
         denom,
@@ -170,18 +171,18 @@ fn genfrac_handler(
         size,
         bar_size: None,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn genfrac_cfrac_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let numer = Box::new(args[0].clone());
     let denom = Box::new(args[1].clone());
 
-    ParseNode::GenFrac(GenFracNode {
+    Ok(ParseNode::GenFrac(GenFracNode {
         continued: true,
         numer,
         denom,
@@ -191,7 +192,7 @@ fn genfrac_cfrac_handler(
         size: StyleAuto::Style(Style::Display),
         bar_size: None,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 const INFIX_NAMES: &'static [&'static str] =
@@ -201,7 +202,7 @@ fn infix_handler(
     ctx: FunctionContext,
     _args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let replace_with = match ctx.func_name.as_ref() {
         "\\over" => "\\frac",
         "\\choose" => "\\binom",
@@ -211,12 +212,12 @@ fn infix_handler(
         _ => unreachable!("Unrecognized infix genfrac command"),
     };
 
-    ParseNode::Infix(InfixNode {
+    Ok(ParseNode::Infix(InfixNode {
         replace_with: Cow::Borrowed(replace_with),
         size: None,
         token: ctx.token.map(Token::into_owned),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn delim_from_value(delim: &str) -> Option<&str> {
@@ -243,7 +244,7 @@ fn genfrac2_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let numer = Box::new(args[4].clone());
     let denom = Box::new(args[5].clone());
 
@@ -305,7 +306,7 @@ fn genfrac2_handler(
         _ => panic!(),
     };
 
-    ParseNode::GenFrac(GenFracNode {
+    Ok(ParseNode::GenFrac(GenFracNode {
         continued: false,
         numer,
         denom,
@@ -315,33 +316,33 @@ fn genfrac2_handler(
         size,
         bar_size,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn infix_above_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let size = if let ParseNode::Size(size) = &args[0] {
         size.value.clone()
     } else {
         panic!()
     };
 
-    ParseNode::Infix(InfixNode {
+    Ok(ParseNode::Infix(InfixNode {
         replace_with: Cow::Borrowed("\\\\abovefrac"),
         size: Some(size),
         token: ctx.token.map(Token::into_owned),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn genfrac_abovefrac_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let numer = Box::new(args[0].clone());
     let bar_size = if let ParseNode::Infix(infix) = &args[1] {
         infix.size.clone().unwrap()
@@ -352,7 +353,7 @@ fn genfrac_abovefrac_handler(
 
     let has_bar_line = bar_size.num() > 0.0;
 
-    ParseNode::GenFrac(GenFracNode {
+    Ok(ParseNode::GenFrac(GenFracNode {
         continued: false,
         numer,
         denom,
@@ -362,7 +363,7 @@ fn genfrac_abovefrac_handler(
         size: StyleAuto::Auto,
         bar_size: Some(bar_size),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn adjust_style(size: &StyleAuto, original_style: StyleId) -> StyleId {

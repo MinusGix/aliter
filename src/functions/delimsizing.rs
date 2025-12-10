@@ -92,15 +92,15 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::DelimSizing, 1)
             .with_arg_types(&[crate::util::ArgType::Primitive] as &[crate::util::ArgType]),
         handler: Box::new(move |ctx, args, _| {
-            let delim = check_delimiter(&args[0]).unwrap();
+            let delim = check_delimiter(&args[0])?;
             let info = DELIM_SIZE_MAP.get(ctx.func_name.as_ref()).unwrap();
 
-            ParseNode::DelimSizing(DelimSizingNode {
+            Ok(ParseNode::DelimSizing(DelimSizingNode {
                 size: info.size,
                 m_class: info.m_class,
                 delim: Cow::Owned(delim),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -117,12 +117,12 @@ pub fn add_functions(fns: &mut Functions) {
             .with_primitive(true)
             .with_allowed_in_argument(true),
         handler: Box::new(|ctx, args, _| {
-            let delim = check_delimiter(&args[0]).unwrap();
-            ParseNode::LeftRightRight(LeftRightRightNode {
+            let delim = check_delimiter(&args[0])?;
+            Ok(ParseNode::LeftRightRight(LeftRightRightNode {
                 delim,
                 color: None,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -137,35 +137,33 @@ pub fn add_functions(fns: &mut Functions) {
             .with_primitive(true)
             .with_allowed_in_argument(true),
         handler: Box::new(|ctx, args, _| {
-            let left_delim = check_delimiter(&args[0]).unwrap();
+            let left_delim = check_delimiter(&args[0])?;
 
             // Track nesting depth for \middle validation
             ctx.parser.leftright_depth += 1;
 
             let body =
                 ctx.parser
-                    .dispatch_parse_expression(false, Some(crate::expander::BreakToken::Right))
-                    .unwrap();
+                    .dispatch_parse_expression(false, Some(crate::expander::BreakToken::Right))?;
 
             ctx.parser.leftright_depth -= 1;
 
             // Parse the following \right
             let right = ctx
                 .parser
-                .parse_function(Some(crate::expander::BreakToken::Right), None)
-                .unwrap()
-                .expect("Expected \\right");
+                .parse_function(Some(crate::expander::BreakToken::Right), None)?
+                .ok_or(ParseError::MissingRight)?;
             let ParseNode::LeftRightRight(right) = right else {
-                panic!("Expected LeftRightRight node");
+                return Err(ParseError::MissingRight);
             };
 
-            ParseNode::LeftRight(LeftRightNode {
+            Ok(ParseNode::LeftRight(LeftRightNode {
                 left: left_delim,
                 right: right.delim,
                 right_color: right.color,
                 body,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
@@ -179,16 +177,16 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Middle, 1)
             .with_primitive(true),
         handler: Box::new(|ctx, args, _| {
-            let delim = check_delimiter(&args[0]).unwrap();
+            let delim = check_delimiter(&args[0])?;
 
             if ctx.parser.leftright_depth == 0 {
-                panic!("\\middle without preceding \\left");
+                return Err(ParseError::MiddleWithoutLeft);
             }
 
-            ParseNode::Middle(MiddleNode {
+            Ok(ParseNode::Middle(MiddleNode {
                 delim,
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,

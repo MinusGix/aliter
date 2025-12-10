@@ -6,6 +6,7 @@ use crate::{
     expander::Mode,
     html, mathml,
     parse_node::{NodeInfo, ParseNode, ParseNodeType, TextNode},
+    parser::ParseError,
     util::ArgType,
     FontShape, FontWeight, Options,
 };
@@ -42,11 +43,11 @@ pub fn add_functions(fns: &mut Functions) {
             .with_arg_types(&[ArgType::Mode(Mode::Text)] as &[ArgType]),
         handler: Box::new(|ctx, args, _opt_args| {
             let body = args[0].clone();
-            ParseNode::Text(TextNode {
+            Ok(ParseNode::Text(TextNode {
                 body: ord_argument(body),
                 font: Some(Cow::Owned(ctx.func_name.to_string())),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

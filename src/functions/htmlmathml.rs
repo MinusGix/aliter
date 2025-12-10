@@ -3,6 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     build_common, html, mathml,
     parse_node::{HtmlMathmlNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
 };
 
 use super::{ord_argument, FunctionPropSpec, FunctionSpec, Functions};
@@ -12,11 +13,11 @@ pub fn add_functions(fns: &mut Functions) {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::HtmlMathml, 2)
             .with_allowed_in_text(true),
         handler: Box::new(|ctx, args, _opt_args| {
-            ParseNode::HtmlMathml(HtmlMathmlNode {
+            Ok(ParseNode::HtmlMathml(HtmlMathmlNode {
                 html: ord_argument(args[0].clone()),
                 mathml: ord_argument(args[1].clone()),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

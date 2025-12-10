@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     parse_node::{IncludeGraphicsNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     unit::{Em, Measurement},
     util::ArgType,
 };
@@ -28,7 +29,7 @@ fn includegraphics_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let _attrs = opt_args.get(0);
 
     let src = if let ParseNode::Url(url) = &args[0] {
@@ -37,12 +38,12 @@ fn includegraphics_handler(
         String::new()
     };
 
-    ParseNode::IncludeGraphics(IncludeGraphicsNode {
+    Ok(ParseNode::IncludeGraphics(IncludeGraphicsNode {
         alt: String::new(),
         width: Measurement::Em(Em(0.0)),
         height: Measurement::Em(Em(0.9)),
         total_height: Measurement::Em(Em(0.0)),
         src,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

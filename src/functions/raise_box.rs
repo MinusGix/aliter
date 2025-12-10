@@ -5,6 +5,7 @@ use crate::{
     html, mathml,
     mathml_tree::{MathNode, MathNodeType},
     parse_node::{NodeInfo, ParseNode, ParseNodeType, RaiseBoxNode},
+    parser::ParseError,
     tree::ClassList,
     unit::calculate_size,
     util::ArgType,
@@ -22,11 +23,11 @@ pub fn add_functions(fns: &mut Functions) {
             let size = size.value;
             let body = args[1].clone();
 
-            ParseNode::RaiseBox(RaiseBoxNode {
+            Ok(ParseNode::RaiseBox(RaiseBoxNode {
                 dy: size,
                 body: Box::new(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

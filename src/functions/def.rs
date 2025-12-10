@@ -27,7 +27,7 @@ pub fn add_functions(fns: &mut Functions) {
 
                     let func = ctx.parser.parse_function(None, None).unwrap();
                     if let Some(ParseNode::Internal(internal)) = func {
-                        return ParseNode::Internal(internal);
+                        return Ok(ParseNode::Internal(internal));
                     } else {
                         panic!()
                     }
@@ -139,9 +139,9 @@ pub fn add_functions(fns: &mut Functions) {
                 }))),
             );
 
-            ParseNode::Internal(InternalNode {
+            Ok(ParseNode::Internal(InternalNode {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         // TODO:
         #[cfg(feature = "html")]
@@ -170,9 +170,9 @@ pub fn add_functions(fns: &mut Functions) {
             let global = ctx.func_name == "\\\\globallet";
             let_command(ctx.parser, name.into_owned(), &mut tok, global);
 
-            ParseNode::Internal(InternalNode {
+            Ok(ParseNode::Internal(InternalNode {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         // TODO:
         #[cfg(feature = "html")]
@@ -205,9 +205,9 @@ pub fn add_functions(fns: &mut Functions) {
             ctx.parser.gullet.push_token(tok);
             ctx.parser.gullet.push_token(middle);
 
-            ParseNode::Internal(InternalNode {
+            Ok(ParseNode::Internal(InternalNode {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         // TODO:
         #[cfg(feature = "html")]

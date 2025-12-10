@@ -9,7 +9,7 @@ use crate::{
     html, mathml,
     lexer::Token,
     parse_node::{ParseNode, ParseNodeType},
-    parser::Parser,
+    parser::{ParseError, Parser},
     util::ArgType,
     Options,
 };
@@ -395,8 +395,8 @@ pub type MathmlBuilderFn = Box<dyn Fn(&ParseNode, &Options) -> MathmlNode>;
 
 pub struct FunctionSpec {
     pub prop: FunctionPropSpec,
-    /// (context, args, opt_args)
-    pub handler: Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>,
+    /// (context, args, opt_args) -> Result<ParseNode, ParseError>
+    pub handler: Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> Result<ParseNode, ParseError> + Send + Sync>,
     #[cfg(feature = "html")]
     pub html_builder: Option<HtmlBuilderFn>,
     #[cfg(feature = "mathml")]
@@ -408,7 +408,7 @@ impl std::fmt::Debug for FunctionSpec {
             .field("prop", &self.prop)
             .field(
                 "handler",
-                &"Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> ParseNode>",
+                &"Box<dyn Fn(FunctionContext, &[ParseNode], &[Option<ParseNode>]) -> Result<ParseNode, ParseError>>",
             )
             .field("html_builder", &self.html_builder.is_some())
             .field("mathml_builder", &self.mathml_builder.is_some())

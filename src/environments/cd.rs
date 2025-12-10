@@ -3,6 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     functions::{FunctionContext, FunctionPropSpec, FunctionSpec, Functions},
     parse_node::{CdLabelNode, CdLabelParentNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
 };
 
 pub fn add_functions(fns: &mut Functions) {
@@ -39,21 +40,21 @@ fn cd_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::CdLabel(CdLabelNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::CdLabel(CdLabelNode {
         side: (&ctx.func_name[4..]).to_string().into(),
         label: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn cd_label_parent_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::CdLabelParentNode(CdLabelParentNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::CdLabelParentNode(CdLabelParentNode {
         fragment: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

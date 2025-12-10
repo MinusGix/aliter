@@ -6,6 +6,7 @@ use regex::Regex;
 use crate::{
     expander::Mode,
     parse_node::{AccentNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     util::ArgType,
     dom_tree::{HtmlNode, WithHtmlDomNode}, // Added this line
 };
@@ -108,7 +109,7 @@ fn accent_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let base = normalize_argument(args[0].clone());
 
     let is_stretchy = !NON_STRETCHY_ACCENT_REGEX.is_match(&ctx.func_name);
@@ -117,13 +118,13 @@ fn accent_handler(
         || ctx.func_name == "\\widetilde"
         || ctx.func_name == "\\widecheck";
 
-    ParseNode::Accent(AccentNode {
+    Ok(ParseNode::Accent(AccentNode {
         label: ctx.func_name.into_owned().into(),
         is_stretchy: Some(is_stretchy),
         is_shifty: Some(is_shifty),
         base: Box::new(base),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 const TEXT_MODE_ACCENT_NAMES: &'static [&'static str] = &[
@@ -210,7 +211,7 @@ fn text_mode_accent_handler<'a, 'p, 'i, 'f>(
     ctx: FunctionContext<'a, 'p, 'i, 'f>,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let base = &args[0];
     let mode = ctx.parser.mode();
 
@@ -218,13 +219,13 @@ fn text_mode_accent_handler<'a, 'p, 'i, 'f>(
         // TODO: report non strict about the mode
     }
 
-    ParseNode::Accent(AccentNode {
+    Ok(ParseNode::Accent(AccentNode {
         label: ctx.func_name.into_owned().into(),
         is_stretchy: Some(false),
         is_shifty: Some(true),
         base: Box::new(base.clone()),
         info: NodeInfo::new_mode(Mode::Text),
-    })
+    }))
 }
 
 

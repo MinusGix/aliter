@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::parse_node::{NodeInfo, ParseNode, ParseNodeType, PhantomNode, HPhantomNode, VPhantomNode};
+use crate::parser::ParseError;
 
 use super::{ord_argument, FunctionContext, FunctionPropSpec, FunctionSpec, Functions};
 
@@ -131,31 +132,31 @@ fn phantom_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::Phantom(PhantomNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::Phantom(PhantomNode {
         body: ord_argument(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn hphantom_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::HPhantom(HPhantomNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::HPhantom(HPhantomNode {
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn vphantom_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
-    ParseNode::VPhantom(VPhantomNode {
+) -> Result<ParseNode, ParseError> {
+    Ok(ParseNode::VPhantom(VPhantomNode {
         body: Box::new(args[0].clone()),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

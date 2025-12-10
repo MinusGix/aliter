@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     macr::MacroReplace,
     parse_node::{ColorNode, NodeInfo, ParseNode, ParseNodeType},
+    parser::ParseError,
     util::ArgType,
 };
 
@@ -44,7 +45,7 @@ fn text_color_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let color = if let ParseNode::ColorToken(color) = &args[0] {
         color.color.clone()
     } else {
@@ -54,18 +55,18 @@ fn text_color_handler(
 
     let body = args[1].clone();
 
-    ParseNode::Color(ColorNode {
+    Ok(ParseNode::Color(ColorNode {
         color,
         body: ord_argument(body),
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }
 
 fn color_handler(
     ctx: FunctionContext,
     args: &[ParseNode],
     _opt_args: &[Option<ParseNode>],
-) -> ParseNode {
+) -> Result<ParseNode, ParseError> {
     let color = if let ParseNode::ColorToken(color) = &args[0] {
         color.color.clone()
     } else {
@@ -87,9 +88,9 @@ fn color_handler(
         .dispatch_parse_expression(true, ctx.break_on_token_text)
         .unwrap();
 
-    ParseNode::Color(ColorNode {
+    Ok(ParseNode::Color(ColorNode {
         color,
         body,
         info: NodeInfo::new_mode(ctx.parser.mode()),
-    })
+    }))
 }

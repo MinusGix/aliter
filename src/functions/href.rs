@@ -6,6 +6,7 @@ use crate::{
     mathml,
     mathml_tree::{MathNode, MathNodeType, MathmlNode},
     parse_node::{HrefNode, NodeInfo, ParseNode, ParseNodeType, TextNode, TextOrdNode},
+    parser::ParseError,
     tree::ClassList,
     util::ArgType,
 };
@@ -26,14 +27,14 @@ pub fn add_functions(fns: &mut Functions) {
 
             // TODO: allow a function to be used
             if !ctx.parser.conf.is_trusted("\\href", href) {
-                return ParseNode::Color(ctx.parser.format_unsupported_cmd("\\href"));
+                return Ok(ParseNode::Color(ctx.parser.format_unsupported_cmd("\\href")));
             }
 
-            ParseNode::Href(HrefNode {
+            Ok(ParseNode::Href(HrefNode {
                 href: href.clone(),
                 body: ord_argument(body),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {
@@ -77,7 +78,7 @@ pub fn add_functions(fns: &mut Functions) {
             let href = &href.url;
 
             if !ctx.parser.conf.is_trusted("\\url", href) {
-                return ParseNode::Color(ctx.parser.format_unsupported_cmd("\\url"));
+                return Ok(ParseNode::Color(ctx.parser.format_unsupported_cmd("\\url")));
             }
 
             let mut chars = Vec::with_capacity(href.chars().count());
@@ -101,11 +102,11 @@ pub fn add_functions(fns: &mut Functions) {
                 info: NodeInfo::new_mode(ctx.parser.mode()),
             };
 
-            ParseNode::Href(HrefNode {
+            Ok(ParseNode::Href(HrefNode {
                 href: href.clone(),
                 body: ord_argument(ParseNode::Text(body)),
                 info: NodeInfo::new_mode(ctx.parser.mode()),
-            })
+            }))
         }),
         #[cfg(feature = "html")]
         html_builder: None,
