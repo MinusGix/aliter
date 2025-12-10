@@ -53,6 +53,7 @@ mod styling;
 mod symbols_op;
 pub mod symbols_ord;
 mod text;
+mod verb;
 
 // TODO: Put specific function groups under features? Eh
 pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
@@ -96,6 +97,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     symbols_op::add_functions(&mut fns);
     symbols_ord::add_functions(&mut fns);
     text::add_functions(&mut fns);
+    verb::add_functions(&mut fns);
 
     // Inline builders for nodes that don't have explicit functions
     // Sup/Sub

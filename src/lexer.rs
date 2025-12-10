@@ -8,8 +8,7 @@ use regex::Regex;
 use crate::{parser::ParseError, util::SourceLocation};
 
 static TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
-    // TODO: This does not include all of the parts that the KaTeX regex does
-    // This does not include the verb parts and skips some of the maybe utf16 unicode
+    // This does not include the verb parts (handled specially in lex())
     const REGEX_TEXT: &str =
         "([ \\r\\n\\t]+)|\\\\(\\n|[ \\r\\t]+\\n?)[ \\r\\t]*|([!-\\[\\]-\\u2027\\u202A-\\uD7FF\\uF900-\\uFFFF][\\u0300-\\u036f]*|(\\\\[a-zA-Z@]+)[ \\r\\n\\t]*|\\\\.)";
     // KaTeX match index to our index mapping
@@ -19,6 +18,13 @@ static TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
     //   [4] [5] => nonexistent
     // [6] => [4] backslash followed by word, excluding any trailing whitespace
     Regex::new(REGEX_TEXT).unwrap()
+});
+
+// Regex to detect \verb or \verb* at start of input
+static VERB_START_REGEX: Lazy<Regex> = Lazy::new(|| {
+    // Match \verb* followed by any non-newline char (delimiter)
+    // or \verb followed by any char that's not * or a-zA-Z (delimiter)
+    Regex::new(r"^\\verb(\*)?([^a-zA-Z\n])").unwrap()
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +67,41 @@ impl<'a> Lexer<'a> {
 
         let initial_pos = self.pos;
         let input = &self.input[self.pos..];
+
+        // Handle \verb and \verb* specially since they need delimiter matching
+        if let Some(verb_match) = VERB_START_REGEX.captures(input) {
+            // Note: star detection (verb_match.get(1)) is done in parser, not needed here
+            let delimiter_match = verb_match.get(2).unwrap();
+            let delimiter = delimiter_match.as_str().chars().next().unwrap();
+
+            // Start searching for closing delimiter after the opening delimiter
+            let content_start = verb_match.get(0).unwrap().end();
+            let rest = &input[content_start..];
+
+            // Find the closing delimiter (must not be newline)
+            if let Some(close_pos) = rest.find(delimiter) {
+                // Check there's no newline before the closing delimiter
+                let content = &rest[..close_pos];
+                if content.contains('\n') {
+                    // LaTeX error: \verb ended by end of line
+                    return Err(ParseError::VerbEndedByNewline);
+                }
+
+                // Total length: \verb(*)?<delim><content><delim>
+                let total_len = content_start + close_pos + delimiter.len_utf8();
+                let verb_token = &input[..total_len];
+                self.pos += total_len;
+                return Ok(Token::new(verb_token, SourceLocation(initial_pos..self.pos)));
+            } else {
+                // No closing delimiter found - check if newline appears
+                if rest.contains('\n') {
+                    return Err(ParseError::VerbEndedByNewline);
+                }
+                // End of input without matching delimiter
+                return Err(ParseError::VerbEndedByEndOfInput);
+            }
+        }
+
         let text = if let Some(capture) = TOKEN_REGEX.captures(input) {
             let whole_match_end = capture.get(0).unwrap().end();
             let (text, end) = if let Some(mac) = capture.get(4) {

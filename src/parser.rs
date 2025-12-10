@@ -101,6 +101,11 @@ pub enum ParseError {
     NewCommandAttemptingToDefine(String),
     /// Multiple `\\tag` defs
     MultipleTag,
+
+    /// `\verb` ended by end of line instead of matching delimiter
+    VerbEndedByNewline,
+    /// `\verb` ended by end of input instead of matching delimiter
+    VerbEndedByEndOfInput,
 }
 
 /// Configuration options for parsing.
