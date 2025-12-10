@@ -40,7 +40,6 @@ pub fn add_functions(fns: &mut Functions) {
     let fbox = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Enclose, 1)
             .with_allowed_in_text(true)
-            .with_allowed_in_math(false)
             .with_arg_types(&[ArgType::HBox] as &[ArgType]),
         handler: Box::new(fbox_handler),
         #[cfg(feature = "html")]
