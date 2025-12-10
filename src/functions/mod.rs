@@ -233,6 +233,77 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     });
     fns.insert_builder(leftright_builder);
 
+    // Spacing builder for space characters in text/math mode
+    let spacing_builder = Arc::new(BuilderFunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::Spacing, 0),
+        #[cfg(feature = "html")]
+        html_builder: Some(Box::new(|group, options| {
+            use crate::build_common;
+            use crate::dom_tree::CssStyle;
+            use crate::expander::Mode;
+
+            let ParseNode::Spacing(spacing) = group else { panic!() };
+
+            // Regular space characters
+            let is_regular_space = matches!(
+                spacing.text.as_ref(),
+                " " | "\\ " | "~" | "\\space" | "\\nobreakspace"
+            );
+
+            if is_regular_space {
+                let class_name = match spacing.text.as_ref() {
+                    "~" | "\\nobreakspace" => Some("nobreak"),
+                    _ => None,
+                };
+
+                if spacing.info.mode == Mode::Text {
+                    let ord = build_common::make_ord(group, options, build_common::OrdType::TextOrd);
+                    // Note: make_ord returns HtmlNode which doesn't have mutable access to classes easily
+                    // For now, just return it as-is - the nobreak class handling would require more work
+                    ord
+                } else {
+                    let sym = build_common::math_sym(&spacing.text, spacing.info.mode, options, Vec::new());
+                    let mut classes = vec!["mspace".to_string()];
+                    if let Some(cls) = class_name {
+                        classes.push(cls.to_string());
+                    }
+                    build_common::make_span::<crate::dom_tree::HtmlNode>(classes, vec![sym.into()], Some(options), CssStyle::default()).into()
+                }
+            } else {
+                // CSS-based spaces (\nobreak, \allowbreak)
+                let css_class = match spacing.text.as_ref() {
+                    "\\nobreak" => "nobreak",
+                    "\\allowbreak" => "allowbreak",
+                    _ => "mspace",
+                };
+                build_common::make_span::<crate::dom_tree::HtmlNode>(vec!["mspace".to_string(), css_class.to_string()], Vec::new(), Some(options), CssStyle::default()).into()
+            }
+        })),
+        #[cfg(feature = "mathml")]
+        mathml_builder: Some(Box::new(|group, _options| {
+            use crate::mathml_tree::{MathNode, MathNodeType, MathmlNode, TextNode};
+            use crate::tree::ClassList;
+
+            let ParseNode::Spacing(spacing) = group else { panic!() };
+
+            let is_regular_space = matches!(
+                spacing.text.as_ref(),
+                " " | "\\ " | "~" | "\\space" | "\\nobreakspace"
+            );
+
+            if is_regular_space {
+                // Non-breaking space
+                let node: MathNode<MathmlNode> = MathNode::new(MathNodeType::MText, vec![TextNode::new("\u{00a0}".to_string()).into()], ClassList::new());
+                node.into()
+            } else {
+                // CSS-based MathML spaces are just empty mspace
+                let node: MathNode<MathmlNode> = MathNode::new_empty(MathNodeType::MSpace);
+                node.into()
+            }
+        })),
+    });
+    fns.insert_builder(spacing_builder);
+
     fns
 });
 

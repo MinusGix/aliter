@@ -104,9 +104,9 @@ fn should_parse_old_font_commands() {
 }
 
 #[test]
-fn should_parse_cal_and_mit() {
+fn should_parse_cal() {
     assert_parses(r"{\cal CALLIGRAPHIC}");
-    assert_parses(r"{\mit mathitalic}");
+    // Note: \mit is not supported in KaTeX
 }
 
 // =============================================================================
@@ -215,12 +215,8 @@ fn should_build_complex_font_expressions() {
 // Unicode Bold Tests
 // =============================================================================
 
-#[test]
-fn should_parse_unicode_bold_variants() {
-    // These use \symbf, \symbfit, etc.
-    assert_parses(r"\symbf{x}");
-    assert_parses(r"\symbfit{y}");
-}
+// Note: \symbf, \symbfit, etc. are NOT supported in KaTeX
+// These would require unicode-math package support
 
 // =============================================================================
 // Font Mode Switching
