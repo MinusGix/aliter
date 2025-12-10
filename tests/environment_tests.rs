@@ -200,23 +200,12 @@ fn should_parse_gather_star() {
 // =============================================================================
 
 #[test]
-fn should_parse_split() {
-    assert_parses(r"\begin{split}a&=b+c\\&=d\end{split}");
+fn should_parse_split_in_display_mode() {
+    // split requires display mode in KaTeX
+    assert_parses_display(r"\begin{split}a&=b+c\\&=d\end{split}");
 }
 
-// =============================================================================
-// Multline Environment Tests
-// =============================================================================
-
-#[test]
-fn should_parse_multline_in_display_mode() {
-    assert_parses_display(r"\begin{multline}a+b+c\\+d+e+f\end{multline}");
-}
-
-#[test]
-fn should_parse_multline_star() {
-    assert_parses_display(r"\begin{multline*}a+b\\+c+d\end{multline*}");
-}
+// Note: \begin{multline} and \begin{multline*} are NOT supported in KaTeX
 
 // =============================================================================
 // Small Matrix Tests
@@ -246,8 +235,9 @@ fn should_parse_equation_star() {
 // =============================================================================
 
 #[test]
-fn should_parse_cd_environment() {
-    assert_parses(r"\begin{CD}A@>>>B\\@VVV@VVV\\C@>>>D\end{CD}");
+fn should_parse_cd_environment_in_display_mode() {
+    // CD requires display mode in KaTeX
+    assert_parses_display(r"\begin{CD}A@>>>B\\@VVV@VVV\\C@>>>D\end{CD}");
 }
 
 // =============================================================================
@@ -407,7 +397,4 @@ fn should_parse_array_as_table() {
     assert_parses(r"\begin{array}{|l|c|r|}\hline\text{Left}&\text{Center}&\text{Right}\\\hline a&b&c\\\hline\end{array}");
 }
 
-#[test]
-fn should_parse_array_with_paragraph_column() {
-    assert_parses(r"\begin{array}{p{2em}}\text{paragraph}\\\text{text}\end{array}");
-}
+// Note: p{...} column specifier is NOT supported in KaTeX (only l, c, r are supported)
