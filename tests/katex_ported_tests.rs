@@ -1794,11 +1794,13 @@ fn cases_star_parses() {
 }
 
 #[test]
-fn multline_environment_parses() {
+fn multline_environment_not_supported() {
+    // Note: KaTeX does NOT support multline environment
+    // This test verifies it correctly fails with "No such environment"
     let mut conf = ParserConfig::default();
     conf.display_mode = true;
-    assert_parses_with_config(r"\begin{multline}a\\b\\c\end{multline}", conf.clone());
-    assert_parses_with_config(r"\begin{multline*}a\\b\\c\end{multline*}", conf);
+    assert_fails_with_config(r"\begin{multline}a\\b\\c\end{multline}", conf.clone());
+    assert_fails_with_config(r"\begin{multline*}a\\b\\c\end{multline*}", conf);
 }
 
 // =============================================================================
