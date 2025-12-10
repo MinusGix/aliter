@@ -538,16 +538,33 @@ impl WithHtmlDomNode for Img {
 }
 impl VirtualNode for Img {
     fn to_markup(&self) -> String {
-        // Note: This ignoring classes is what the KaTeX code already does
+        // Output class attribute (unlike original KaTeX's toMarkup which omits classes)
+        let classes = self.node.classes.join(" ");
         let mut markup = format!("<img src=\"{}\" alt=\"{}\"", self.src, self.alt);
 
-        if let Some(style) = self.node.style.as_style_attr() {
-            markup.push_str(" style=\"");
-            markup.push_str(&util::escape(&style));
-            markup.push('"');
+        if !classes.is_empty() {
+            markup.push_str(&format!(" class=\"{}\"", classes));
         }
 
-        markup.push_str("'/>");
+        // Add height and width as HTML attributes if present in style
+        if let Some(height) = &self.node.style.height {
+            markup.push_str(&format!(" height=\"{}\"", height));
+        }
+        if let Some(width) = &self.node.style.width {
+            markup.push_str(&format!(" width=\"{}\"", width));
+        }
+
+        // Build remaining style attributes (excluding height/width already output)
+        let mut styles = String::new();
+        if let Some(va) = &self.node.style.vertical_align {
+            styles.push_str(&format!("vertical-align:{};", va));
+        }
+        // Add other style properties as needed
+        if !styles.is_empty() {
+            markup.push_str(&format!(" style=\"{}\"", util::escape(&styles)));
+        }
+
+        markup.push_str("/>");
 
         markup
     }

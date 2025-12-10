@@ -92,7 +92,7 @@ fn add_accents(fns: &mut Functions) {
             vlist.into()
         })),
         #[cfg(feature = "mathml")]
-        mathml_builder: None,
+        mathml_builder: Some(Box::new(accent_mathml_builder)),
     });
 
     fns.insert_for_all_str(ACCENT_NAMES.iter().copied(), accent);
@@ -201,10 +201,38 @@ fn add_text_mode_accents(fns: &mut Functions) {
             vlist.into()
         })),
         #[cfg(feature = "mathml")]
-        mathml_builder: None,
+        mathml_builder: Some(Box::new(accent_mathml_builder)),
     });
 
     fns.insert_for_all_str(TEXT_MODE_ACCENT_NAMES.iter().copied(), accent);
+}
+
+#[cfg(feature = "mathml")]
+fn accent_mathml_builder(group: &ParseNode, options: &crate::Options) -> crate::mathml_tree::MathmlNode {
+    use crate::{mathml, mathml_tree::{MathNode, MathNodeType, MathmlNode, TextNode}, stretchy, tree::ClassList};
+
+    let ParseNode::Accent(group) = group else {
+        panic!("Expected Accent node");
+    };
+
+    let accent_node: MathmlNode = if group.is_stretchy.unwrap_or(false) {
+        stretchy::mathml_node(&group.label).into()
+    } else {
+        let text = mathml::make_text(group.label.to_string(), group.info.mode, Some(options));
+        let mo: MathNode<MathmlNode> = MathNode::new(MathNodeType::Mo, vec![text.into()], ClassList::new());
+        mo.into()
+    };
+
+    let base_node = mathml::build_group(Some(&group.base), options);
+
+    let mut node: MathNode<MathmlNode> = MathNode::new(
+        MathNodeType::MOver,
+        vec![base_node, accent_node],
+        ClassList::new(),
+    );
+    node.set_attribute("accent", "true");
+
+    node.into()
 }
 
 fn text_mode_accent_handler<'a, 'p, 'i, 'f>(
