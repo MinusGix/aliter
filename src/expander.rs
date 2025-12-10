@@ -90,7 +90,7 @@ impl<'a, 'f> MacroExpander<'a, 'f> {
         mode: Mode,
     ) -> MacroExpander<'a, 'f> {
         MacroExpander {
-            lexer: Lexer::new(input, LexerConf {}),
+            lexer: Lexer::new(input, LexerConf { strict: conf.strict }),
             macros: Namespace::new(BUILTIN_MACROS.clone(), conf.macros.clone()),
             functions,
             conf,

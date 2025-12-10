@@ -106,6 +106,13 @@ pub enum ParseError {
     VerbEndedByNewline,
     /// `\verb` ended by end of input instead of matching delimiter
     VerbEndedByEndOfInput,
+
+    /// Unicode text character used in math mode (strict mode)
+    UnicodeTextInMathMode(char),
+    /// Comment without newline (strict mode)
+    CommentWithoutNewline,
+    /// Too many columns in array (strict mode)
+    TooManyArrayColumns,
 }
 
 /// Configuration options for parsing.
@@ -181,7 +188,7 @@ impl Default for ParserConfig {
 
 /// How strict to be about features that make writing LaTeX convenient but are not actually
 /// supported by it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StrictMode {
     /// Silently ignore issues
     Ignore,
@@ -1476,7 +1483,11 @@ impl<'a, 'f> Parser<'a, 'f> {
             }
             // TODO: is this 0x80 check mimicking katex right?
         } else if let Some(true) = text.chars().next().map(|x| x as u32 >= 0x80) {
-            // TODO: do warnings on bad characters
+            // Unicode text character in math mode - report strict error
+            if self.mode() == Mode::Math && self.conf.strict == StrictMode::Error {
+                let ch = text.chars().next().unwrap();
+                return Err(ParseError::UnicodeTextInMathMode(ch));
+            }
 
             ParseNode::TextOrd(TextOrdNode {
                 text: text.into_owned().into(),

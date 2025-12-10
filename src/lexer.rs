@@ -5,7 +5,7 @@ use std::{borrow::Cow, collections::HashMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::{parser::ParseError, util::SourceLocation};
+use crate::{parser::{ParseError, StrictMode}, util::SourceLocation};
 
 static TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
     // This does not include the verb parts (handled specially in lex())
@@ -36,7 +36,9 @@ pub enum CategoryCode {
 }
 
 #[derive(Debug, Clone)]
-pub struct LexerConf {}
+pub struct LexerConf {
+    pub strict: StrictMode,
+}
 
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
@@ -129,7 +131,10 @@ impl<'a> Lexer<'a> {
                         if let Some(nl_index) = dest.find('\n') {
                             self.pos += nl_index + '\n'.len_utf8();
                         } else {
-                            // TODO: report nonstrict error
+                            // Comment without newline - report strict error
+                            if self.conf.strict == StrictMode::Error {
+                                return Err(ParseError::CommentWithoutNewline);
+                            }
                             // eof
                             self.pos = self.input.len();
                         }
@@ -247,11 +252,13 @@ impl<'a> Token<'a> {
 mod tests {
     use crate::lexer::Token;
 
+    use crate::parser::StrictMode;
+
     use super::{Lexer, LexerConf};
 
     #[test]
     fn basic_fraction() {
-        let mut lexer = Lexer::new(r#"\frac{a}{b}"#, LexerConf {});
+        let mut lexer = Lexer::new(r#"\frac{a}{b}"#, LexerConf { strict: StrictMode::Warn });
 
         assert_eq!(lexer.lex().unwrap(), Token::new("\\frac", 0..5));
         assert_eq!(lexer.lex().unwrap(), Token::new("{", 5..6));
@@ -266,7 +273,7 @@ mod tests {
     fn nontrivial_with_comment() {
         let mut lexer = Lexer::new(
             r#"\left( x \right) \left( x^2 \right) % comment"#,
-            LexerConf {},
+            LexerConf { strict: StrictMode::Warn },
         );
         assert_eq!(lexer.lex().unwrap(), Token::new("\\left", 0..5));
         assert_eq!(lexer.lex().unwrap(), Token::new("(", 5..6));

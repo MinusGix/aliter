@@ -158,10 +158,16 @@ fn array_from_opts(
         let next = parser.fetch()?.content.clone();
         if next == "&" {
             if let Some(max) = opts.max_num_cols {
-                if body.last().map(|r| r.len()).unwrap_or(0) == max
-                    && (opts.single_row || opts.col_separation_type.is_some())
-                {
-                    return Err(ParseError::Expected);
+                if body.last().map(|r| r.len()).unwrap_or(0) == max {
+                    if opts.single_row || opts.col_separation_type.is_some() {
+                        // {equation} or {split}
+                        return Err(ParseError::Expected);
+                    } else {
+                        // {array} environment - report nonstrict
+                        if parser.conf.strict == crate::parser::StrictMode::Error {
+                            return Err(ParseError::TooManyArrayColumns);
+                        }
+                    }
                 }
             }
             parser.consume();
