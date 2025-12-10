@@ -106,8 +106,7 @@ fn should_parse_old_font_commands() {
 #[test]
 fn should_parse_cal_and_mit() {
     assert_parses(r"{\cal CALLIGRAPHIC}");
-    // \mit not implemented yet
-    // assert_parses(r"{\mit mathitalic}");
+    assert_parses(r"{\mit mathitalic}");
 }
 
 // =============================================================================
@@ -177,9 +176,7 @@ fn should_build_special_fonts() {
 
 #[test]
 fn should_build_text_fonts() {
-    // Spacing group not handled in HTML builder yet
-    // assert_builds(r"\text{text }\textit{italic }\textbf{bold }\texttt{code}");
-    assert_builds(r"\text{text}\textit{italic}\textbf{bold}\texttt{code}");
+    assert_builds(r"\text{text }\textit{italic }\textbf{bold }\texttt{code}");
 }
 
 #[test]
@@ -218,13 +215,12 @@ fn should_build_complex_font_expressions() {
 // Unicode Bold Tests
 // =============================================================================
 
-// Unicode bold variants not implemented yet
-// #[test]
-// fn should_parse_unicode_bold_variants() {
-//     // These use \symbf, \symbfit, etc.
-//     assert_parses(r"\symbf{x}");
-//     assert_parses(r"\symbfit{y}");
-// }
+#[test]
+fn should_parse_unicode_bold_variants() {
+    // These use \symbf, \symbfit, etc.
+    assert_parses(r"\symbf{x}");
+    assert_parses(r"\symbfit{y}");
+}
 
 // =============================================================================
 // Font Mode Switching
@@ -232,9 +228,8 @@ fn should_build_complex_font_expressions() {
 
 #[test]
 fn should_switch_between_math_and_text_fonts() {
-    // \( \) delimiters and $ in text mode not implemented yet
-    // assert_parses(r"\text{text \(\mathbf{math}\) text}");
-    // assert_parses(r"\text{text $\mathbf{math}$ text}");
+    assert_parses(r"\text{text \(\mathbf{math}\) text}");
+    assert_parses(r"\text{text $\mathbf{math}$ text}");
     assert_parses(r"\mathbf{math \text{text} math}");
 }
 

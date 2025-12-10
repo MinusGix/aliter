@@ -49,11 +49,8 @@ fn should_parse_named_spacing_commands() {
 
 #[test]
 fn should_build_spacing_commands() {
-    // Spacing group not handled in HTML builder yet
-    // assert_builds(r"a\,b\:c\;d\ e\!f");
-    // assert_builds(r"\quad\qquad\enspace");
-    assert_parses(r"a\,b\:c\;d\ e\!f");
-    assert_parses(r"\quad\qquad\enspace");
+    assert_builds(r"a\,b\:c\;d\ e\!f");
+    assert_builds(r"\quad\qquad\enspace");
 }
 
 // =============================================================================
@@ -155,13 +152,12 @@ fn should_build_phantom_commands() {
     assert_builds(r"\phantom{x^2}+\vphantom{\frac{a}{b}}+\hphantom{text}");
 }
 
-// Smash tests commented out if not implemented yet
-// #[test]
-// fn should_parse_smash() {
-//     assert_parses(r"\smash{x^2}");
-//     assert_parses(r"\smash[b]{x^2}");  // smash bottom
-//     assert_parses(r"\smash[t]{x^2}");  // smash top
-// }
+#[test]
+fn should_parse_smash() {
+    assert_parses(r"\smash{x^2}");
+    assert_parses(r"\smash[b]{x^2}");  // smash bottom
+    assert_parses(r"\smash[t]{x^2}");  // smash top
+}
 
 // =============================================================================
 // Lap Tests (llap, rlap, mathllap, mathrlap, mathclap)
@@ -202,18 +198,17 @@ fn should_parse_rule_with_optional_raise() {
     assert_parses(r"\rule[-0.5ex]{1em}{2ex}");
 }
 
-// Rule validation too lenient - these should fail but currently pass
-// #[test]
-// fn should_not_parse_rule_without_units() {
-//     assert_fails(r"\rule{1}{2em}");
-//     assert_fails(r"\rule{1em}{2}");
-// }
+#[test]
+fn should_not_parse_rule_without_units() {
+    assert_fails(r"\rule{1}{2em}");
+    assert_fails(r"\rule{1em}{2}");
+}
 
-// #[test]
-// fn should_not_parse_rule_with_invalid_units() {
-//     assert_fails(r"\rule{1badunit}{2em}");
-//     assert_fails(r"\rule{1em}{2badunit}");
-// }
+#[test]
+fn should_not_parse_rule_with_invalid_units() {
+    assert_fails(r"\rule{1badunit}{2em}");
+    assert_fails(r"\rule{1em}{2badunit}");
+}
 
 #[test]
 fn should_build_rules() {
@@ -239,28 +234,24 @@ fn should_parse_tie_in_text_mode() {
 
 #[test]
 fn should_build_ties() {
-    // Spacing group not handled in HTML builder yet
-    // assert_builds(r"a~b~c");
-    // assert_builds(r"\text{hello~world}");
-    assert_parses(r"a~b~c");
-    assert_parses(r"\text{hello~world}");
+    assert_builds(r"a~b~c");
+    assert_builds(r"\text{hello~world}");
 }
 
 // =============================================================================
 // Strut Tests
 // =============================================================================
 
-// \strut not implemented yet
-// #[test]
-// fn should_parse_strut() {
-//     assert_parses(r"\strut");
-//     assert_parses(r"a\strut b");
-// }
+#[test]
+fn should_parse_strut() {
+    assert_parses(r"\strut");
+    assert_parses(r"a\strut b");
+}
 
-// #[test]
-// fn should_build_strut() {
-//     assert_builds(r"baseline\strut test");
-// }
+#[test]
+fn should_build_strut() {
+    assert_builds(r"baseline\strut test");
+}
 
 // =============================================================================
 // Raisebox Tests
@@ -282,17 +273,16 @@ fn should_build_raisebox() {
 // Mspace Tests
 // =============================================================================
 
-// \mspace not implemented yet
-// #[test]
-// fn should_parse_mspace() {
-//     assert_parses(r"\mspace{1mu}");
-//     assert_parses(r"\mspace{18mu}");  // \quad = 18mu
-// }
+#[test]
+fn should_parse_mspace() {
+    assert_parses(r"\mspace{1mu}");
+    assert_parses(r"\mspace{18mu}");  // \quad = 18mu
+}
 
-// #[test]
-// fn should_build_mspace() {
-//     assert_builds(r"a\mspace{3mu}b");
-// }
+#[test]
+fn should_build_mspace() {
+    assert_builds(r"a\mspace{3mu}b");
+}
 
 // =============================================================================
 // Mkern Tests
@@ -323,11 +313,8 @@ fn should_parse_complex_spacing_combinations() {
 
 #[test]
 fn should_build_complex_spacing() {
-    // Spacing group not handled in HTML builder yet
-    // assert_builds(r"f(x)\,dx\quad\text{where}\ x\in\mathbb{R}");
-    // assert_builds(r"\int\!\!\!\int f(x,y)\,dx\,dy");
-    assert_parses(r"f(x)\,dx\quad\text{where}\ x\in\mathbb{R}");
-    assert_parses(r"\int\!\!\!\int f(x,y)\,dx\,dy");
+    assert_builds(r"f(x)\,dx\quad\text{where}\ x\in\mathbb{R}");
+    assert_builds(r"\int\!\!\!\int f(x,y)\,dx\,dy");
 }
 
 #[test]
