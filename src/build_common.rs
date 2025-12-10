@@ -329,14 +329,17 @@ pub(crate) fn try_combine_chars(chars: &mut Vec<HtmlNode>) {
         };
 
         let HtmlNode::Symbol(prev) = prev else {
+            i += 1;
             continue;
         };
 
         let HtmlNode::Symbol(next) = next else {
+            i += 1;
             continue;
         };
 
         if !can_combine(prev, next) {
+            i += 1;
             continue;
         }
 
