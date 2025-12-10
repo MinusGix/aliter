@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Takes a symbol and converts it into a MathML text node after performing optional replacement
-/// /from symbols.rs
+/// from symbols.rs
 pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> TextNode {
     let text_char = text.chars().nth(0);
     let text_char_code = text_char.map(char_code_for);
@@ -23,15 +23,18 @@ pub(crate) fn make_text(text: String, mode: Mode, options: Option<&Options>) -> 
     let replace = symbols::SYMBOLS.get(mode, &text).and_then(|s| s.replace);
 
     if let Some(replace) = replace {
-        if text_char_code == Some(0xD835) && !LIGATURES.contains(&text.as_str()) {
-            if let Some(options) = options {
-                let font_family_tt =
-                    options.font_family.len() > 4 && options.font_family[4..].starts_with("tt");
-                let font_tt = options.font.len() > 4 && options.font[4..].starts_with("tt");
-                if font_family_tt || font_tt {
-                    return TextNode::new(replace.to_string());
-                }
-            }
+        // Replace the text unless:
+        // 1. The char code is 0xD835 (math alphanumeric symbols)
+        // 2. AND it's not a ligature OR font is tt
+        let should_not_replace = text_char_code == Some(0xD835) && !LIGATURES.contains(&text.as_str())
+            && options.map_or(false, |opts| {
+                let font_family_tt = opts.font_family.len() > 4 && opts.font_family[4..].starts_with("tt");
+                let font_tt = opts.font.len() > 4 && opts.font[4..].starts_with("tt");
+                font_family_tt || font_tt
+            });
+
+        if !should_not_replace && text_char_code != Some(0xD835) {
+            return TextNode::new(replace.to_string());
         }
     }
 

@@ -30,6 +30,7 @@ mod font;
 pub mod genfrac;
 mod delimsizing;
 mod enclose;
+mod html_extension;
 mod includegraphics;
 mod horiz_brace;
 mod hbox;
@@ -78,6 +79,7 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     genfrac::add_functions(&mut fns);
     delimsizing::add_functions(&mut fns);
     enclose::add_functions(&mut fns);
+    html_extension::add_functions(&mut fns);
     includegraphics::add_functions(&mut fns);
     horiz_brace::add_functions(&mut fns);
     hbox::add_functions(&mut fns);
@@ -195,10 +197,18 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
         })),
         #[cfg(feature = "mathml")]
         mathml_builder: Some(Box::new(|group, options| {
+            use crate::mathml_tree::{MathNode, MathNodeType};
+            use crate::tree::ClassList;
+
             let ParseNode::Color(color) = group else { panic!() };
             let mut opts = options.clone_alter();
             opts = opts.with_color(color.color.clone());
-            mathml::build_expression_row(&color.body, &opts, None)
+            let inner = mathml::build_expression(&color.body, &opts, None);
+
+            // Wrap in mstyle with mathcolor attribute
+            let mut node: MathNode<crate::mathml_tree::MathmlNode> = MathNode::new(MathNodeType::MStyle, inner, ClassList::new());
+            node.set_attribute("mathcolor", color.color.to_string());
+            node.into()
         })),
     });
     fns.insert_builder(color_builder);

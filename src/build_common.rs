@@ -49,7 +49,12 @@ pub(crate) fn make_symbol(
     let LookupSymbol { value, metrics } = lookup_symbol(value, font, mode);
 
     let mut symbol_node = if let Some(metrics) = metrics {
-        let italic = if mode == Mode::Text || options.map(|o| o.font == "mathit").unwrap_or(false) {
+        // Apply italic correction for text mode, mathit font, or when using Math-Italic font
+        let is_math_italic = font == "Math-Italic" || font == "Math-BoldItalic";
+        let italic = if mode == Mode::Text
+            || options.map(|o| o.font == "mathit").unwrap_or(false)
+            || is_math_italic
+        {
             metrics.italic
         } else {
             0.0
