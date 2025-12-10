@@ -285,6 +285,40 @@ pub(crate) fn build_array(group: &ArrayNode, options: &Options) -> MathmlNode {
     MathNode::new(MathNodeType::MTable, table_rows, ClassList::new()).into()
 }
 
+/// Build MathML for a left-right delimiter group
+pub(crate) fn build_leftright(group: &crate::parse_node::LeftRightNode, options: &Options) -> MathmlNode {
+    let mut inner = build_expression(&group.body, options, None);
+
+    // Add left delimiter if not empty
+    if group.left != "." {
+        let mut left_node = MathNode::<crate::mathml_tree::MathmlNode>::new(
+            MathNodeType::Mo,
+            vec![make_text(group.left.clone(), group.info.mode, None).into()],
+            ClassList::new(),
+        );
+        left_node.set_attribute("fence", "true");
+        inner.insert(0, left_node.into());
+    }
+
+    // Add right delimiter if not empty
+    if group.right != "." {
+        let mut right_node = MathNode::<crate::mathml_tree::MathmlNode>::new(
+            MathNodeType::Mo,
+            vec![make_text(group.right.clone(), group.info.mode, None).into()],
+            ClassList::new(),
+        );
+        right_node.set_attribute("fence", "true");
+
+        if let Some(ref color) = group.right_color {
+            right_node.set_attribute("mathcolor", color.to_string());
+        }
+
+        inner.push(right_node.into());
+    }
+
+    make_row(inner)
+}
+
 pub(crate) fn build_group(group: Option<&ParseNode>, options: &Options) -> MathmlNode {
     let Some(group) = group else {
         return MathNode::<EmptyMathNode>::new_empty(MathNodeType::MRow).into();

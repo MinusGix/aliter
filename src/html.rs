@@ -777,6 +777,67 @@ pub(crate) fn build_array(group: &ArrayNode, options: &Options) -> HtmlNode {
     final_node
 }
 
+/// Build HTML for a left-right delimiter group
+pub(crate) fn build_leftright(group: &crate::parse_node::LeftRightNode, options: &Options) -> HtmlNode {
+    // Build the inner expression
+    let mut inner = build_expression(
+        &group.body,
+        options,
+        RealGroup::True,
+        (Some(crate::html::DomType::MOpen), Some(crate::html::DomType::MClose)),
+    );
+
+    let mut inner_height = 0.0f64;
+    let mut inner_depth = 0.0f64;
+
+    // Calculate height and depth of inner content
+    for node in &inner {
+        inner_height = inner_height.max(node.node().height);
+        inner_depth = inner_depth.max(node.node().depth);
+    }
+
+    // Scale by size multiplier
+    inner_height *= options.size_multiplier();
+    inner_depth *= options.size_multiplier();
+
+    // Build left delimiter
+    let left_delim = if group.left == "." {
+        make_null_delimiter(options, vec!["mopen".to_string()]).into()
+    } else {
+        crate::delimiter::left_right_delim(
+            &group.left,
+            inner_height,
+            inner_depth,
+            options,
+            group.info.mode,
+            vec!["mopen".to_string()],
+        ).into()
+    };
+    inner.insert(0, left_delim);
+
+    // Build right delimiter
+    let right_delim = if group.right == "." {
+        make_null_delimiter(options, vec!["mclose".to_string()]).into()
+    } else {
+        let right_options = if let Some(ref color) = group.right_color {
+            options.clone_alter().with_color(color.clone())
+        } else {
+            options.clone()
+        };
+        crate::delimiter::left_right_delim(
+            &group.right,
+            inner_height,
+            inner_depth,
+            &right_options,
+            group.info.mode,
+            vec!["mclose".to_string()],
+        ).into()
+    };
+    inner.push(right_delim);
+
+    build_common::make_span(vec!["minner".to_string()], inner, Some(options), CssStyle::default()).into()
+}
+
 /// Return the outermost node of a dom tree
 fn get_outermost_node(node: &HtmlNode, side: Side) -> &HtmlNode {
     if let Some(children) = get_partial_group_children(node) {

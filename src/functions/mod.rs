@@ -206,6 +206,21 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     });
     fns.insert_builder(array_builder);
 
+    let leftright_builder = Arc::new(BuilderFunctionSpec {
+        prop: FunctionPropSpec::new_num_args(ParseNodeType::LeftRight, 0),
+        #[cfg(feature = "html")]
+        html_builder: Some(Box::new(|group, options| {
+            let ParseNode::LeftRight(lr) = group else { panic!() };
+            crate::html::build_leftright(lr, options)
+        })),
+        #[cfg(feature = "mathml")]
+        mathml_builder: Some(Box::new(|group, options| {
+            let ParseNode::LeftRight(lr) = group else { panic!() };
+            crate::mathml::build_leftright(lr, options)
+        })),
+    });
+    fns.insert_builder(leftright_builder);
+
     fns
 });
 
