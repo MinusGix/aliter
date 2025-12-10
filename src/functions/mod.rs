@@ -48,6 +48,8 @@ mod underline;
 mod vcenter;
 mod phantom;
 mod raise_box;
+mod relax;
+mod rule;
 mod sizing;
 mod smash;
 mod sqrt;
@@ -94,6 +96,8 @@ pub(crate) const FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     vcenter::add_functions(&mut fns);
     phantom::add_functions(&mut fns);
     raise_box::add_functions(&mut fns);
+    relax::add_functions(&mut fns);
+    rule::add_functions(&mut fns);
     sizing::add_functions(&mut fns);
     smash::add_functions(&mut fns);
     sqrt::add_functions(&mut fns);

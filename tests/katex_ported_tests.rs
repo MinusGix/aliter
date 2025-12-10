@@ -1982,3 +1982,320 @@ fn special_characters_parse() {
     assert_parses(r"\{");
     assert_parses(r"\}");
 }
+
+// =============================================================================
+// Verb Edge Cases (katex-spec.js: verb handling in lexer)
+// =============================================================================
+
+#[test]
+fn verb_fails_when_ended_by_newline() {
+    // \verb content cannot contain newlines
+    assert_fails("\\verb|hello\nworld|");
+}
+
+#[test]
+fn verb_fails_when_no_closing_delimiter() {
+    // \verb without closing delimiter should fail
+    assert_fails(r"\verb|hello");
+}
+
+#[test]
+fn verb_star_parses() {
+    // \verb* shows spaces
+    assert_parses(r"\verb*|hello world|");
+}
+
+// =============================================================================
+// Relax (katex-spec.js:4100-4104)
+// =============================================================================
+
+#[test]
+fn relax_stops_expansion_in_kern() {
+    // \relax should stop \kern from reading the unit
+    // \kern2 without a unit is invalid in KaTeX
+    assert_fails(r"\kern2\relax em");
+}
+
+// =============================================================================
+// Color Edge Cases (katex-spec.js:825-899)
+// =============================================================================
+
+#[test]
+fn bad_custom_color_fails() {
+    // Invalid color names should fail
+    assert_fails(r"\textcolor{bad-color}{x}");
+}
+
+#[test]
+fn bad_hex_color_length_fails() {
+    // Hex colors must be 3 or 6 characters
+    assert_fails(r"\textcolor{#fA6f}{x}");  // 4 chars - invalid
+}
+
+#[test]
+fn bad_hex_color_character_fails() {
+    // Hex colors must only contain valid hex digits
+    assert_fails(r"\textcolor{#gA6}{x}");
+}
+
+#[test]
+fn valid_hex_colors_parse() {
+    assert_parses(r"\textcolor{#fA6}{x}");      // 3 char hex
+    assert_parses(r"\textcolor{#fA6fA6}{x}");   // 6 char hex
+    assert_parses(r"\textcolor{fA6fA6}{x}");    // 6 char without #
+}
+
+// =============================================================================
+// Fbox/Colorbox Math Failure (katex-spec.js:2434-2450)
+// =============================================================================
+
+#[test]
+fn fbox_fails_with_math() {
+    // \fbox only accepts text, not math
+    assert_fails(r"\fbox{\frac{a}{b}}");
+}
+
+#[test]
+fn colorbox_fails_with_math() {
+    // \colorbox only accepts text, not math
+    assert_fails(r"\colorbox{red}{\alpha}");
+    assert_fails(r"\colorbox{red}{\frac{a}{b}}");
+}
+
+#[test]
+fn fcolorbox_fails_with_math() {
+    // \fcolorbox only accepts text, not math
+    assert_fails(r"\fcolorbox{blue}{yellow}{\alpha}");
+}
+
+// =============================================================================
+// Actuarial Angle (katex-spec.js:2554-2570)
+// =============================================================================
+
+#[test]
+fn actuarial_angle_parses_in_math_mode() {
+    assert_parses(r"a_{\angl{n}}");
+    assert_parses(r"a_{\angl{n}i}");
+    assert_parses(r"a_{\angl n}");
+}
+
+#[test]
+fn actuarial_angle_fails_in_text_mode() {
+    assert_fails(r"\text{a_{\angl{n}}}");
+}
+
+// =============================================================================
+// Phase (katex-spec.js:2572-2578)
+// =============================================================================
+
+#[test]
+fn phase_parses_in_math_mode() {
+    assert_parses(r"\phase{-78.2^\circ}");
+}
+
+#[test]
+fn phase_fails_in_text_mode() {
+    assert_fails(r"\text{\phase{-78.2^\circ}}");
+}
+
+// =============================================================================
+// Internal Macro Functions (katex-spec.js:3241-3265)
+// =============================================================================
+
+#[test]
+fn at_firstoftwo_consumes_both_args() {
+    assert_parses(r"\@firstoftwo{yes}{no}");
+}
+
+#[test]
+fn at_ifstar_consumes_star() {
+    assert_parses(r"\@ifstar{yes}{no}*");
+    assert_parses(r"\@ifstar{yes}{no}?");
+}
+
+#[test]
+fn at_ifnextchar_parses() {
+    assert_parses(r"\@ifnextchar!{yes}{no}!");
+}
+
+// =============================================================================
+// Optional Argument Edge Cases (katex-spec.js:2679-2704)
+// =============================================================================
+
+#[test]
+fn optional_argument_malformed_fails() {
+    // Optional argument without unit should fail for rule
+    assert_fails(r"\rule[1]{2em}{3em}");
+}
+
+#[test]
+fn optional_argument_unclosed_fails() {
+    // Unclosed optional argument should fail
+    assert_fails(r"\sqrt[");
+}
+
+// =============================================================================
+// Bin Builder Context (katex-spec.js:2124-2152)
+// =============================================================================
+
+#[test]
+fn bin_becomes_ord_at_start_of_expression() {
+    // Binary operators at start should become ord
+    assert_parses(r"+ x");
+    assert_parses(r"- x");
+}
+
+#[test]
+fn bin_becomes_ord_after_certain_elements() {
+    // Binary operators after certain elements become ord
+    assert_parses(r"x + + 2");    // second + is ord
+    assert_parses(r"( + 2");      // + after open is ord
+    assert_parses(r"= + 2");      // + after rel is ord
+    assert_parses(r"\sin + 2");   // + after op is ord
+    assert_parses(r", + 2");      // + after punct is ord
+}
+
+// =============================================================================
+// Mathinner (katex-spec.js:104-115)
+// =============================================================================
+
+#[test]
+fn mathinner_parses() {
+    assert_parses(r"\mathinner{\langle{\psi}\rangle}");
+    assert_parses(r"\frac{1}{\mathinner{\langle{\psi}\rangle}}");
+}
+
+// =============================================================================
+// Begingroup/Endgroup (katex-spec.js:345-370)
+// =============================================================================
+
+#[test]
+fn begingroup_endgroup_parses() {
+    assert_parses(r"\begingroup xy \endgroup");
+}
+
+#[test]
+fn begingroup_endgroup_mismatched_fails() {
+    assert_fails(r"\begingroup xy");
+    assert_fails(r"\begingroup xy }");
+}
+
+// =============================================================================
+// Lap Parser (katex-spec.js:985-1012)
+// =============================================================================
+
+#[test]
+fn lap_text_versions_parse() {
+    assert_parses(r"\rlap{\,/}{=}");
+    assert_parses(r"{=}\llap{/\,}");
+    assert_parses(r"\sum_{\clap{ABCDEFG}}");
+}
+
+#[test]
+fn lap_math_versions_parse() {
+    assert_parses(r"\mathrlap{\,/}{=}");
+    assert_parses(r"{=}\mathllap{/\,}");
+    assert_parses(r"\sum_{\mathclap{ABCDEFG}}");
+}
+
+#[test]
+fn lap_text_versions_fail_on_math() {
+    assert_fails(r"\rlap{\frac{a}{b}}{=}");
+    assert_fails(r"{=}\llap{\frac{a}{b}}");
+    assert_fails(r"\sum_{\clap{\frac{a}{b}}}");
+}
+
+// =============================================================================
+// Non-braced Kern (katex-spec.js:1105-1171)
+// =============================================================================
+
+#[test]
+fn kern_non_braced_parses() {
+    assert_parses(r"\kern1em");
+    assert_parses(r"\kern 1 ex");
+    assert_parses(r"\mkern 1mu");
+}
+
+#[test]
+fn kern_handles_whitespace() {
+    // Whitespace variations in kern arguments
+    assert_parses("a\\mkern\t-\r1  \n mu\nb");
+}
+
+#[test]
+fn kern_with_negative_size_parses() {
+    assert_parses(r"\kern-1em");
+    assert_parses(r"\kern+1em");
+}
+
+// =============================================================================
+// Array Column Parsing (katex-spec.js:2706-2730)
+// =============================================================================
+
+#[test]
+fn array_accepts_dashed_separators() {
+    assert_parses(r"\begin{array}{|l||c:r::}\end{array}");
+}
+
+// =============================================================================
+// Alignat Environment (katex-spec.js:2818-2819)
+// =============================================================================
+
+#[test]
+fn alignat_environment_parses_in_display_mode() {
+    let mut conf = ParserConfig::default();
+    conf.display_mode = true;
+    assert_parses_with_config(r"\begin{alignat}{2}a&=b&c&=d\end{alignat}", conf.clone());
+    assert_parses_with_config(r"\begin{alignat*}{2}a&=b&c&=d\end{alignat*}", conf);
+}
+
+// =============================================================================
+// Parser Error Position (katex-spec.js:2669-2677)
+// The actual position checking would need error introspection
+// =============================================================================
+
+#[test]
+fn parser_error_on_extra_closing_brace() {
+    assert_fails(r"\sqrt}");
+}
+
+// =============================================================================
+// Char Command Edge Cases (katex-spec.js:3312-3337)
+// =============================================================================
+
+#[test]
+fn char_command_various_forms_parse() {
+    assert_parses(r"\char`a");
+    assert_parses(r"\char`\a");
+    assert_parses(r"\char97");      // decimal
+    assert_parses(r"\char'141");    // octal
+    assert_parses(r#"\char"61"#);   // hex
+}
+
+#[test]
+fn char_command_incomplete_fails() {
+    assert_fails(r"\char");
+    assert_fails(r"\char`");
+    assert_fails(r"\char'");
+    assert_fails(r#"\char""#);
+}
+
+#[test]
+fn char_command_invalid_digits_fail() {
+    assert_fails(r"\char'a");   // a is not octal
+    assert_fails(r#"\char"g"#); // g is not hex
+}
+
+// =============================================================================
+// Unicode Private Area Characters (katex-spec.js:3339-3343)
+// =============================================================================
+
+#[test]
+fn unicode_private_area_symbols_parse() {
+    assert_parses(r"\gvertneqq");
+    assert_parses(r"\lvertneqq");
+    assert_parses(r"\ngeqq");
+    assert_parses(r"\nleqq");
+    assert_parses(r"\varsubsetneq");
+    assert_parses(r"\varsupsetneq");
+}

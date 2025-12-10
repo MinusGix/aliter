@@ -30,7 +30,7 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
     let mut macros = Macros::default();
 
     // macro tools
-    macros.insert_back_macro("\\relax", text(""));
+    // Note: \relax is now a function (src/functions/relax.rs), not a macro
 
     macros.insert_back_macro(
         "\\noexpand",
@@ -170,9 +170,10 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
             if let Some(base) = base {
                 // Parse a number in the given base, starting with the first token
                 debug_assert_eq!(token.content.len(), 1);
-                let number = token.content.chars().nth(0).unwrap();
-                let mut number =
-                    ch_to_digit(number).ok_or_else(|| ParseError::CharInvalidBaseDigit)?;
+                let first_char = token.content.chars().nth(0).unwrap();
+                let first_digit =
+                    ch_to_digit_in_base(first_char, base).ok_or_else(|| ParseError::CharInvalidBaseDigit)?;
+                let mut number = first_digit;
 
                 loop {
                     let token = exp.future()?;
@@ -181,7 +182,7 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
                     }
 
                     let digit = token.content.chars().nth(0).unwrap();
-                    let Some(digit) = ch_to_digit(digit) else {
+                    let Some(digit) = ch_to_digit_in_base(digit, base) else {
                         break;
                     };
 
@@ -1245,9 +1246,6 @@ pub static BUILTIN_MACROS: Lazy<Macros> = Lazy::new(|| {
         text("\\@ifstar\\operatornamewithlimits\\operatorname@"),
     );
 
-    // Stub implementations for unported functions (parse-only placeholders)
-    macros.insert_back_macro("\\rule", text("{#1}{#2}"));
-
     macros
 });
 
@@ -1258,4 +1256,17 @@ fn ch_to_digit(ch: char) -> Option<u16> {
         'A'..='F' => ch as u16 - 'A' as u16 + 10,
         _ => return None,
     })
+}
+
+/// Convert a character to a digit, validating it's valid for the given base.
+/// For octal (base 8): only 0-7
+/// For decimal (base 10): only 0-9
+/// For hex (base 16): only 0-9, a-f, A-F
+fn ch_to_digit_in_base(ch: char, base: u16) -> Option<u16> {
+    let digit = ch_to_digit(ch)?;
+    if digit < base {
+        Some(digit)
+    } else {
+        None
+    }
 }

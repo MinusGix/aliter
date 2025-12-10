@@ -14,6 +14,7 @@ pub fn add_functions(fns: &mut Functions) {
     let kern = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::Kern, 1)
             .with_allowed_in_text(true)
+            .with_primitive(true)
             .with_arg_types(&[ArgType::Size] as &[ArgType]),
         handler: Box::new(|ctx, args, _opt_args| {
             let ParseNode::Size(size) = args[0].clone() else { panic!() };
