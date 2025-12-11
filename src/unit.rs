@@ -1,7 +1,19 @@
 use crate::Options;
 
+/// Parse an em value from a CSS string like "0.5em" or "1.2em".
+/// Returns None if the string doesn't end with "em" or can't be parsed.
+pub fn parse_em(s: &str) -> Option<f64> {
+    let s = s.trim();
+    if s.ends_with("em") {
+        let num_part = &s[..s.len() - 2];
+        num_part.parse::<f64>().ok()
+    } else {
+        None
+    }
+}
+
 /// Round `n` to 4 decimal places, or to the nearest 1/10,000th em.
-pub(crate) fn make_em(n: f64) -> String {
+pub fn make_em(n: f64) -> String {
     // 0.0 -> 0em
     // 0.1 -> 0.1em
     // 0.01 -> 0.01em

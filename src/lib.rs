@@ -23,6 +23,7 @@ pub mod dom_tree;
 pub mod environments;
 pub mod expander;
 pub mod font_metrics;
+pub mod ir;
 mod font_metrics_data;
 pub mod functions;
 #[cfg(feature = "html")]
