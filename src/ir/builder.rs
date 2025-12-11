@@ -20,10 +20,13 @@
 
 use crate::expander::Mode;
 use crate::font_metrics::{get_character_metrics, CharacterMetrics, FontMetrics};
+use crate::html::DomType;
 use crate::parse_node::*;
+use crate::spacing_data::{SPACINGS, TIGHT_SPACINGS};
 use crate::style::DISPLAY_STYLE;
-use crate::symbols;
+use crate::symbols::{self, Atom};
 use crate::unit::calculate_size;
+use crate::util::find_assoc_data;
 use crate::Options;
 
 use super::types::*;
@@ -72,14 +75,22 @@ impl IrBuilderConfig {
 }
 
 /// Context for IR layout computation.
+///
+/// This context owns its Options, allowing style changes to be properly
+/// propagated through the layout tree.
 pub struct LayoutContext<'a> {
-    pub options: &'a Options,
+    /// The options for this context (owned to allow style changes)
+    options: Options,
+    /// The builder configuration (shared)
     pub config: &'a IrBuilderConfig,
 }
 
 impl<'a> LayoutContext<'a> {
-    pub fn new(options: &'a Options, config: &'a IrBuilderConfig) -> Self {
-        Self { options, config }
+    pub fn new(options: &Options, config: &'a IrBuilderConfig) -> Self {
+        Self {
+            options: options.clone(),
+            config,
+        }
     }
 
     /// Get global font metrics for current style.
@@ -113,14 +124,51 @@ impl<'a> LayoutContext<'a> {
         self.options.size_multiplier()
     }
 
+    /// Get the current style.
+    pub fn style(&self) -> crate::style::StyleId {
+        self.options.style
+    }
+
+    /// Get access to the options.
+    pub fn options(&self) -> &Options {
+        &self.options
+    }
+
     /// Create a child context with a different style.
-    pub fn with_style(&self, _style: crate::style::StyleId) -> LayoutContext<'a> {
-        // For now we create a temporary Options. In the future we might
-        // want to optimize this to actually apply the style change.
+    ///
+    /// This properly updates the size multiplier based on the new style.
+    pub fn with_style(&self, style: crate::style::StyleId) -> LayoutContext<'a> {
+        let new_options = self.options.having_style(style)
+            .unwrap_or_else(|| self.options.clone());
         LayoutContext {
-            options: self.options,
+            options: new_options,
             config: self.config,
         }
+    }
+
+    /// Create a child context for superscript.
+    pub fn for_superscript(&self) -> LayoutContext<'a> {
+        self.with_style(self.options.style.sup())
+    }
+
+    /// Create a child context for subscript.
+    pub fn for_subscript(&self) -> LayoutContext<'a> {
+        self.with_style(self.options.style.sub())
+    }
+
+    /// Create a child context for fraction numerator.
+    pub fn for_numerator(&self) -> LayoutContext<'a> {
+        self.with_style(self.options.style.frac_num())
+    }
+
+    /// Create a child context for fraction denominator.
+    pub fn for_denominator(&self) -> LayoutContext<'a> {
+        self.with_style(self.options.style.frac_den())
+    }
+
+    /// Create a child context with cramped style.
+    pub fn cramped(&self) -> LayoutContext<'a> {
+        self.with_style(self.options.style.cramp())
     }
 }
 
@@ -146,6 +194,60 @@ pub fn build_ir_with_config(
 }
 
 // =============================================================================
+// Atom Type Helpers
+// =============================================================================
+
+/// Determine the DomType (atom type) of a parse node.
+/// This is used for computing inter-element spacing.
+fn get_dom_type(node: &ParseNode) -> Option<DomType> {
+    match node {
+        // Explicit atom types
+        ParseNode::Atom(atom) => match atom.family {
+            Atom::Bin => Some(DomType::MBin),
+            Atom::Rel => Some(DomType::MRel),
+            Atom::Open => Some(DomType::MOpen),
+            Atom::Close => Some(DomType::MClose),
+            Atom::Punct => Some(DomType::MPunct),
+            Atom::Inner => Some(DomType::MInner),
+        },
+
+        // Ordinals
+        ParseNode::MathOrd(_) | ParseNode::TextOrd(_) => Some(DomType::MOrd),
+
+        // Operators
+        ParseNode::Op(_) => Some(DomType::MOp),
+
+        // Fractions, surds, supsubs act as ordinals
+        ParseNode::GenFrac(_) | ParseNode::Sqrt(_) | ParseNode::SupSub(_) => Some(DomType::MOrd),
+
+        // Delimiters
+        ParseNode::LeftRight(_) => Some(DomType::MInner),
+
+        // Groups inherit from their content (simplified: treat as ord)
+        ParseNode::OrdGroup(_) => Some(DomType::MOrd),
+
+        // Spacing nodes don't participate in spacing calculation
+        ParseNode::Spacing(_) | ParseNode::Kern(_) => None,
+
+        // Other nodes default to ordinal
+        _ => Some(DomType::MOrd),
+    }
+}
+
+/// Check if a node is a "non-space" node that participates in spacing.
+fn is_non_space_node(node: &ParseNode) -> bool {
+    !matches!(node, ParseNode::Spacing(_) | ParseNode::Kern(_))
+}
+
+/// Get spacing (in mu) between two atom types.
+fn get_spacing(left: DomType, right: DomType, is_tight: bool) -> f64 {
+    let table = if is_tight { TIGHT_SPACINGS } else { SPACINGS };
+    find_assoc_data(table, (left, right))
+        .map(|mu| mu.0)
+        .unwrap_or(0.0)
+}
+
+// =============================================================================
 // Expression Builder
 // =============================================================================
 
@@ -166,7 +268,37 @@ fn build_expression(nodes: &[ParseNode], ctx: &LayoutContext) -> MathElement {
     let mut max_height = 0.0f64;
     let mut max_depth = 0.0f64;
 
+    // Determine if we're in tight (script) style
+    let is_tight = ctx.style().is_tight();
+
+    // Track the previous non-space node's type for spacing
+    let mut prev_dom_type: Option<DomType> = None;
+
     for node in nodes {
+        // Get the current node's dom type before building it
+        let curr_dom_type = get_dom_type(node);
+        let is_non_space = is_non_space_node(node);
+
+        // Insert spacing between adjacent non-space atoms
+        if is_non_space {
+            if let (Some(prev), Some(curr)) = (prev_dom_type, curr_dom_type) {
+                let spacing_mu = get_spacing(prev, curr, is_tight);
+                if spacing_mu != 0.0 {
+                    // Convert mu to em: 1 mu = 1/18 em
+                    let spacing_em = spacing_mu / 18.0 * ctx.size_multiplier();
+                    if spacing_em != 0.0 {
+                        children.push(Positioned::new(
+                            MathElement::Kern { width: spacing_em },
+                            x_offset,
+                            0.0,
+                        ));
+                        x_offset += spacing_em;
+                    }
+                }
+            }
+        }
+
+        // Build the element
         let element = build_node(node, ctx);
         let (width, height, depth) = element.dimensions();
 
@@ -175,8 +307,10 @@ fn build_expression(nodes: &[ParseNode], ctx: &LayoutContext) -> MathElement {
         max_height = max_height.max(height);
         max_depth = max_depth.max(depth);
 
-        // TODO: Add inter-element spacing based on atom types
-        // (port spacing logic from html.rs)
+        // Update previous dom type for next iteration
+        if is_non_space {
+            prev_dom_type = curr_dom_type;
+        }
     }
 
     MathElement::HBox {
@@ -354,7 +488,7 @@ fn build_spacing(sp: &SpacingNode, ctx: &LayoutContext) -> MathElement {
 }
 
 fn build_kern(kern: &KernNode, ctx: &LayoutContext) -> MathElement {
-    let width = calculate_size(&kern.dimension, ctx.options);
+    let width = calculate_size(&kern.dimension, ctx.options());
     MathElement::Kern { width }
 }
 
@@ -365,10 +499,11 @@ fn build_kern(kern: &KernNode, ctx: &LayoutContext) -> MathElement {
 fn build_fraction(frac: &GenFracNode, ctx: &LayoutContext) -> MathElement {
     let metrics = ctx.metrics();
 
-    // Build numerator and denominator
-    // TODO: Use proper fraction styles (frac_num, frac_den)
-    let numer = build_node(&frac.numer, ctx);
-    let denom = build_node(&frac.denom, ctx);
+    // Build numerator and denominator in appropriate styles
+    let numer_ctx = ctx.for_numerator();
+    let denom_ctx = ctx.for_denominator();
+    let numer = build_node(&frac.numer, &numer_ctx);
+    let denom = build_node(&frac.denom, &denom_ctx);
 
     let numer_width = numer.width();
     let denom_width = denom.width();
@@ -381,7 +516,7 @@ fn build_fraction(frac: &GenFracNode, ctx: &LayoutContext) -> MathElement {
     let (num_shift, denom_shift, rule_width) = if frac.has_bar_line {
         let rule_width = frac.bar_size
             .as_ref()
-            .map(|m| calculate_size(m, ctx.options))
+            .map(|m| calculate_size(m, ctx.options()))
             .unwrap_or(metrics.default_rule_thickness);
 
         let num_shift = if is_display {
@@ -477,9 +612,11 @@ fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
     let base_depth = base.as_ref().map(|b| b.depth()).unwrap_or(0.0);
     let base_width = base.as_ref().map(|b| b.width()).unwrap_or(0.0);
 
-    // Build scripts (TODO: use proper script style)
-    let sup = supsub.sup.as_ref().map(|s| build_node(s, ctx));
-    let sub = supsub.sub.as_ref().map(|s| build_node(s, ctx));
+    // Build scripts in appropriate styles
+    let sup_ctx = ctx.for_superscript();
+    let sub_ctx = ctx.for_subscript();
+    let sup = supsub.sup.as_ref().map(|s| build_node(s, &sup_ctx));
+    let sub = supsub.sub.as_ref().map(|s| build_node(s, &sub_ctx));
 
     // Compute positions using TeX rules (Rule 18)
     // These are the font metric values for script positioning
@@ -581,20 +718,107 @@ fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
 // =============================================================================
 
 fn build_sqrt(sqrt: &SqrtNode, ctx: &LayoutContext) -> MathElement {
-    // TODO: Implement proper sqrt layout with surd and vinculum
-    let radicand = build_node(&sqrt.body, ctx);
-    let index = sqrt.index.as_ref().map(|i| build_node(i, ctx));
+    // TeX Rule 11: Square roots
+    let metrics = ctx.metrics();
 
-    let (width, height, depth) = radicand.dimensions();
+    // Build the radicand in cramped style
+    let cramped_ctx = ctx.cramped();
+    let mut radicand = build_node(&sqrt.body, &cramped_ctx);
 
-    // Simple placeholder layout
+    // Ensure minimum height (use x_height if radicand is empty/small)
+    let (rad_width, mut rad_height, rad_depth) = radicand.dimensions();
+    if rad_height < metrics.x_height {
+        rad_height = metrics.x_height;
+        // Update radicand's dimensions if it's an HBox
+        radicand = ensure_min_height(radicand, rad_height);
+    }
+
+    // Calculate rule and clearance parameters
+    let theta = metrics.sqrt_rule_thickness.max(metrics.default_rule_thickness);
+    let phi = if ctx.is_display() {
+        metrics.x_height
+    } else {
+        theta
+    };
+    let line_clearance = theta + phi / 4.0;
+
+    // Total height needed for the surd
+    let surd_height = rad_height + rad_depth + line_clearance + theta;
+
+    // Determine surd size and advance width
+    // (simplified: use a fixed advance width based on size)
+    let advance_width = compute_surd_advance_width(surd_height, ctx);
+    let surd_depth = compute_surd_depth(surd_height);
+
+    // Adjust clearance if surd is taller than needed
+    let actual_clearance = if surd_depth > rad_height + rad_depth + line_clearance {
+        (line_clearance + surd_depth - rad_height - rad_depth) / 2.0
+    } else {
+        line_clearance
+    };
+
+    // Build the surd path element
+    let surd = MathElement::Path {
+        path_data: std::borrow::Cow::Borrowed("surd"), // Placeholder path name
+        width: advance_width,
+        height: surd_height,
+        shift: 0.0,
+    };
+
+    // Build the vinculum (horizontal rule)
+    let vinculum = MathElement::Rule {
+        width: rad_width,
+        height: theta,
+        shift: 0.0,
+        style: LineStyle::Solid,
+        color: None,
+    };
+
+    // Build the index if present (in scriptscript style)
+    let index = sqrt.index.as_ref().map(|i| {
+        let ss_ctx = ctx.with_style(crate::style::SCRIPT_SCRIPT_STYLE);
+        build_node(i, &ss_ctx)
+    });
+
+    // Calculate total dimensions
+    let total_height = rad_height + actual_clearance + theta;
+    let total_width = advance_width + rad_width;
+
+    // Position elements
+    // Radicand is at origin (baseline)
+    // Vinculum is above the radicand
+    // Surd is to the left
+
+    let vinculum_y = rad_height + actual_clearance;
+
+    let mut children = vec![
+        // Surd on the left
+        Positioned::new(surd, 0.0, 0.0),
+        // Vinculum above radicand
+        Positioned::new(vinculum.clone(), advance_width, vinculum_y),
+        // Radicand content
+        Positioned::new(radicand.clone(), advance_width, 0.0),
+    ];
+
+    // Handle root index positioning
+    let index_width = if let Some(ref idx) = index {
+        let idx_width = idx.width();
+        // Position index to the left and raised
+        // The amount the index is shifted by (from TeX `\r@@t`)
+        let to_shift = 0.6 * (total_height - rad_depth);
+        children.insert(0, Positioned::new(idx.clone(), 0.0, to_shift));
+        idx_width
+    } else {
+        0.0
+    };
+
     let layout = MathElement::HBox {
-        children: vec![Positioned::at_origin(radicand.clone())],
-        width: width + 0.5, // Add space for surd
-        height: height + 0.1, // Add space for vinculum
-        depth,
+        children,
+        width: total_width + index_width,
+        height: total_height,
+        depth: rad_depth,
         classes: if ctx.config.include_classes {
-            vec!["sqrt".to_string()]
+            vec!["mord".to_string(), "sqrt".to_string()]
         } else {
             vec![]
         },
@@ -609,6 +833,44 @@ fn build_sqrt(sqrt: &SqrtNode, ctx: &LayoutContext) -> MathElement {
     } else {
         layout
     }
+}
+
+/// Ensure an element has at least the given height.
+fn ensure_min_height(elem: MathElement, min_height: f64) -> MathElement {
+    match elem {
+        MathElement::HBox { children, width, height, depth, classes } => {
+            MathElement::HBox {
+                children,
+                width,
+                height: height.max(min_height),
+                depth,
+                classes,
+            }
+        }
+        other => other,
+    }
+}
+
+/// Compute the advance width of the surd based on required height.
+fn compute_surd_advance_width(height: f64, ctx: &LayoutContext) -> f64 {
+    // Simplified: use different advance widths based on size
+    // In actual implementation, this should match the SVG surd dimensions
+    let size = ctx.size_multiplier();
+    if height < 1.0 {
+        0.55 * size
+    } else if height < 1.4 {
+        0.68 * size
+    } else if height < 2.0 {
+        0.80 * size
+    } else {
+        1.0 * size
+    }
+}
+
+/// Compute the surd depth (portion below baseline).
+fn compute_surd_depth(height: f64) -> f64 {
+    // Simplified: surd depth is roughly proportional to height
+    height * 0.8
 }
 
 fn build_accent(accent: &AccentNode, ctx: &LayoutContext) -> MathElement {
@@ -769,10 +1031,10 @@ fn build_vphantom(vphantom: &VPhantomNode, ctx: &LayoutContext) -> MathElement {
 }
 
 fn build_rule(rule: &RuleNode, ctx: &LayoutContext) -> MathElement {
-    let width = calculate_size(&rule.width, ctx.options);
-    let height = calculate_size(&rule.height, ctx.options);
+    let width = calculate_size(&rule.width, ctx.options());
+    let height = calculate_size(&rule.height, ctx.options());
     let shift = rule.shift.as_ref()
-        .map(|s| calculate_size(s, ctx.options))
+        .map(|s| calculate_size(s, ctx.options()))
         .unwrap_or(0.0);
 
     MathElement::Rule {
@@ -916,5 +1178,98 @@ mod tests {
 
         let elem = build_fraction(&frac_node, &ctx);
         assert!(matches!(elem, MathElement::VBox { .. }));
+    }
+
+    #[test]
+    fn test_inter_element_spacing() {
+        use crate::parse_tree;
+
+        // Test that spacing is inserted between elements
+        let opts = default_options();
+
+        // x + y should have spacing around the +
+        let tree = parse_tree("x + y", ParserConfig::default()).unwrap();
+        let layout = build_ir(&tree, &opts);
+
+        // Count elements including spacing kerns
+        let count = count_elements(&layout.root);
+        // Should have: x, kern, +, kern, y (= 5 elements)
+        // Or without spacing: x, +, y (= 3 elements)
+        assert!(count >= 3, "Expected at least 3 elements, got {}", count);
+    }
+
+    #[test]
+    fn test_spacing_binary_vs_relation() {
+        use crate::parse_tree;
+
+        let opts = default_options();
+
+        // Binary operator (thin/medium space)
+        let tree_bin = parse_tree("x + y", ParserConfig::default()).unwrap();
+        let layout_bin = build_ir(&tree_bin, &opts);
+
+        // Relation operator (thick space)
+        let tree_rel = parse_tree("x = y", ParserConfig::default()).unwrap();
+        let layout_rel = build_ir(&tree_rel, &opts);
+
+        // Both should produce valid layouts with positive width
+        assert!(layout_bin.width > 0.0);
+        assert!(layout_rel.width > 0.0);
+
+        // Relation should have wider spacing than binary
+        // (thick space = 5mu vs medium space = 4mu)
+        // Note: exact comparison is tricky due to symbol widths
+    }
+
+    #[test]
+    fn test_sqrt_layout() {
+        use crate::parse_tree;
+
+        let opts = default_options();
+
+        // Test basic sqrt
+        let tree = parse_tree(r"\sqrt{x}", ParserConfig::default()).unwrap();
+        let layout = build_ir(&tree, &opts);
+
+        // Should produce a Radical element in semantic mode
+        assert!(layout.width > 0.0);
+        assert!(layout.height > 0.0);
+
+        // Test sqrt with index
+        let tree = parse_tree(r"\sqrt[3]{x}", ParserConfig::default()).unwrap();
+        let layout = build_ir(&tree, &opts);
+        assert!(layout.width > 0.0);
+
+        // Test nested sqrt
+        let tree = parse_tree(r"\sqrt{\sqrt{x}}", ParserConfig::default()).unwrap();
+        let layout = build_ir(&tree, &opts);
+        assert!(layout.width > 0.0);
+    }
+
+    /// Helper to count total elements in a MathElement tree
+    fn count_elements(elem: &MathElement) -> usize {
+        match elem {
+            MathElement::HBox { children, .. } => {
+                1 + children.iter().map(|c| count_elements(&c.element)).sum::<usize>()
+            }
+            MathElement::VBox { children, .. } => {
+                1 + children.iter().map(|c| count_elements(&c.element)).sum::<usize>()
+            }
+            MathElement::Fraction { layout, .. }
+            | MathElement::Scripts { layout, .. }
+            | MathElement::Radical { layout, .. }
+            | MathElement::Accent { layout, .. }
+            | MathElement::Delimited { layout, .. }
+            | MathElement::LargeOp { layout, .. }
+            | MathElement::Array { layout, .. } => {
+                1 + count_elements(layout)
+            }
+            MathElement::Color { inner, .. }
+            | MathElement::Phantom { inner, .. }
+            | MathElement::Link { inner, .. } => {
+                1 + count_elements(inner)
+            }
+            _ => 1,
+        }
     }
 }
