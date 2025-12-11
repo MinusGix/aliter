@@ -392,6 +392,11 @@ fn build_node(node: &ParseNode, ctx: &LayoutContext) -> MathElement {
         ParseNode::Smash(smash) => build_smash(smash, ctx),
         ParseNode::VCenter(vc) => build_vcenter(vc, ctx),
         ParseNode::Array(arr) => build_array(arr, ctx),
+        ParseNode::Url(url) => build_url(url, ctx),
+        ParseNode::Verb(verb) => build_verb(verb, ctx),
+        ParseNode::IncludeGraphics(img) => build_include_graphics(img, ctx),
+        ParseNode::Html(html) => build_html_node(html, ctx),
+        ParseNode::Tag(tag) => build_tag(tag, ctx),
 
         // Fallback for unimplemented nodes
         _ => {
@@ -1543,6 +1548,89 @@ fn build_vcenter(vc: &VCenterNode, ctx: &LayoutContext) -> MathElement {
         depth: depth + dy,
         classes: vec![],
     }
+}
+
+fn build_url(url: &UrlNode, ctx: &LayoutContext) -> MathElement {
+    // \url - render URL as clickable link in typewriter font
+    let font_ctx = ctx.with_font("mathtt");
+    let text_elem = build_symbol(&url.url, &font_ctx, false);
+
+    MathElement::Link {
+        href: url.url.clone(),
+        inner: Box::new(text_elem),
+    }
+}
+
+fn build_verb(verb: &VerbNode, ctx: &LayoutContext) -> MathElement {
+    // \verb - verbatim text in typewriter font
+    let font_ctx = ctx.with_font("mathtt");
+
+    // Build each character
+    let mut children = Vec::new();
+    let mut x = 0.0;
+
+    for ch in verb.body.chars() {
+        let ch_str = ch.to_string();
+        let elem = build_symbol(&ch_str, &font_ctx, false);
+        let (w, _, _) = elem.dimensions();
+        children.push(Positioned::new(elem, x, 0.0));
+        x += w;
+    }
+
+    let (_, height, depth) = if let Some(first) = children.first() {
+        first.element.dimensions()
+    } else {
+        (0.0, 0.656, 0.219)
+    };
+
+    MathElement::HBox {
+        children,
+        width: x,
+        height,
+        depth,
+        classes: vec!["verb".to_string()],
+    }
+}
+
+fn build_include_graphics(img: &IncludeGraphicsNode, ctx: &LayoutContext) -> MathElement {
+    // \includegraphics - embedded image
+    let width = calculate_size(&img.width, &ctx.options);
+    let height = calculate_size(&img.height, &ctx.options);
+
+    MathElement::Image {
+        src: img.src.clone(),
+        alt: img.alt.clone(),
+        width,
+        height,
+    }
+}
+
+fn build_html_node(html: &HtmlNode, ctx: &LayoutContext) -> MathElement {
+    // \htmlClass, \htmlId, etc. - HTML wrapper with attributes
+    let inner = build_expression(&html.body, ctx);
+
+    // Extract class attribute if present
+    let classes: Vec<String> = html
+        .attributes
+        .get("class")
+        .map(|c| c.split_whitespace().map(String::from).collect())
+        .unwrap_or_default();
+
+    let (width, height, depth) = inner.dimensions();
+
+    MathElement::HBox {
+        children: vec![Positioned::at_origin(inner)],
+        width,
+        height,
+        depth,
+        classes,
+    }
+}
+
+fn build_tag(tag: &TagNode, ctx: &LayoutContext) -> MathElement {
+    // Equation tags - build body with tag on the side
+    // For now, just build the body; tag positioning is handled by display logic
+    build_expression(&tag.body, ctx)
 }
 
 fn build_array(arr: &ArrayNode, ctx: &LayoutContext) -> MathElement {
