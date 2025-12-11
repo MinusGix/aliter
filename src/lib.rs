@@ -127,7 +127,11 @@ pub struct Options {
     font_metrics: OnceCell<FontMetrics>,
 }
 impl Options {
-    pub(crate) fn from_parser_conf(conf: &ParserConfig) -> Self {
+    /// Create Options from a ParserConfig.
+    ///
+    /// This is useful for creating Options with the correct display mode,
+    /// max size, and min rule thickness settings.
+    pub fn from_parser_conf(conf: &ParserConfig) -> Self {
         Options {
             style: if conf.display_mode {
                 DISPLAY_STYLE
