@@ -405,11 +405,17 @@ fn build_atom(atom: &AtomNode, ctx: &LayoutContext) -> MathElement {
 fn build_symbol(text: &str, ctx: &LayoutContext, math_mode: bool) -> MathElement {
     let mode = if math_mode { Mode::Math } else { Mode::Text };
 
+    // Look up the symbol to get its replacement character (e.g., "\\alpha" -> "α")
+    let symbol = symbols::SYMBOLS.get(mode, text);
+    let render_text = symbol
+        .and_then(|s| s.replace)
+        .unwrap_or(text);
+
     // Determine the font to use
     let font_name = determine_font_for_symbol(text, ctx, math_mode);
 
-    // Get metrics for the first character
-    let first_char = text.chars().next().unwrap_or('?');
+    // Get metrics for the first character of the replacement text
+    let first_char = render_text.chars().next().unwrap_or('?');
     let metrics = ctx.char_metrics(first_char, font_name, mode);
 
     let (width, height, depth, italic, skew) = if let Some(m) = metrics {
@@ -422,7 +428,7 @@ fn build_symbol(text: &str, ctx: &LayoutContext, math_mode: bool) -> MathElement
     let size = ctx.size_multiplier();
 
     MathElement::Text {
-        text: text.to_string(),
+        text: render_text.to_string(),
         style: TextStyle {
             font: Some(Font::from_name(font_name)),
             size,
@@ -1222,6 +1228,58 @@ mod tests {
             assert!(style.width.unwrap() > 0.0);
         } else {
             panic!("Expected Text element");
+        }
+    }
+
+    #[test]
+    fn test_build_greek_symbols() {
+        let opts = default_options();
+        let config = IrBuilderConfig::default();
+        let ctx = LayoutContext::new(&opts, &config);
+
+        // Test that macro names are converted to Unicode characters
+        let alpha = build_symbol("\\alpha", &ctx, true);
+        if let MathElement::Text { text, .. } = alpha {
+            assert_eq!(text, "α", "\\alpha should render as Unicode α");
+        } else {
+            panic!("Expected Text element for alpha");
+        }
+
+        let beta = build_symbol("\\beta", &ctx, true);
+        if let MathElement::Text { text, .. } = beta {
+            assert_eq!(text, "β", "\\beta should render as Unicode β");
+        } else {
+            panic!("Expected Text element for beta");
+        }
+
+        // Test uppercase Greek
+        let gamma = build_symbol("\\Gamma", &ctx, true);
+        if let MathElement::Text { text, .. } = gamma {
+            assert_eq!(text, "Γ", "\\Gamma should render as Unicode Γ");
+        } else {
+            panic!("Expected Text element for Gamma");
+        }
+
+        // Test operators and relations
+        let infty = build_symbol("\\infty", &ctx, true);
+        if let MathElement::Text { text, .. } = infty {
+            assert_eq!(text, "∞", "\\infty should render as Unicode ∞");
+        } else {
+            panic!("Expected Text element for infty");
+        }
+
+        let rightarrow = build_symbol("\\rightarrow", &ctx, true);
+        if let MathElement::Text { text, .. } = rightarrow {
+            assert_eq!(text, "→", "\\rightarrow should render as Unicode →");
+        } else {
+            panic!("Expected Text element for rightarrow");
+        }
+
+        let leq = build_symbol("\\leq", &ctx, true);
+        if let MathElement::Text { text, .. } = leq {
+            assert_eq!(text, "≤", "\\leq should render as Unicode ≤");
+        } else {
+            panic!("Expected Text element for leq");
         }
     }
 
