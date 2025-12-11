@@ -18,12 +18,13 @@
 //! // layout.root contains MathElement::Fraction with explicit positioning
 //! ```
 
+use crate::array::ColSeparationType;
 use crate::expander::Mode;
 use crate::font_metrics::{get_character_metrics, CharacterMetrics, FontMetrics};
 use crate::html::DomType;
 use crate::parse_node::*;
 use crate::spacing_data::{SPACINGS, TIGHT_SPACINGS};
-use crate::style::DISPLAY_STYLE;
+use crate::style::{DISPLAY_STYLE, SCRIPT_STYLE, SCRIPT_SCRIPT_STYLE};
 use crate::symbols::{self, Atom};
 use crate::unit::calculate_size;
 use crate::util::find_assoc_data;
@@ -112,6 +113,16 @@ impl<'a> LayoutContext<'a> {
     /// Check if we're in display style.
     pub fn is_display(&self) -> bool {
         self.options.style.size() == DISPLAY_STYLE.size()
+    }
+
+    /// Check if we're in script style.
+    pub fn is_script(&self) -> bool {
+        self.options.style.size() == SCRIPT_STYLE.size()
+    }
+
+    /// Check if we're in scriptscript style.
+    pub fn is_scriptscript(&self) -> bool {
+        self.options.style.size() == SCRIPT_SCRIPT_STYLE.size()
     }
 
     /// Check if the current style is cramped.
@@ -372,6 +383,15 @@ fn build_node(node: &ParseNode, ctx: &LayoutContext) -> MathElement {
         ParseNode::Middle(middle) => build_middle(middle, ctx),
         ParseNode::Href(href) => build_href(href, ctx),
         ParseNode::HBox(hbox) => build_hbox(hbox, ctx),
+        ParseNode::XArrow(arrow) => build_xarrow(arrow, ctx),
+        ParseNode::Enclose(enclose) => build_enclose(enclose, ctx),
+        ParseNode::HorizBrace(brace) => build_horiz_brace(brace, ctx),
+        ParseNode::Lap(lap) => build_lap(lap, ctx),
+        ParseNode::MathChoice(choice) => build_math_choice(choice, ctx),
+        ParseNode::RaiseBox(rbox) => build_raise_box(rbox, ctx),
+        ParseNode::Smash(smash) => build_smash(smash, ctx),
+        ParseNode::VCenter(vc) => build_vcenter(vc, ctx),
+        ParseNode::Array(arr) => build_array(arr, ctx),
 
         // Fallback for unimplemented nodes
         _ => {
@@ -1284,6 +1304,376 @@ fn build_href(href: &HrefNode, ctx: &LayoutContext) -> MathElement {
 fn build_hbox(hbox: &HBoxNode, ctx: &LayoutContext) -> MathElement {
     // \hbox, \mbox - horizontal box in text mode
     build_expression(&hbox.body, ctx)
+}
+
+fn build_xarrow(arrow: &XArrowNode, ctx: &LayoutContext) -> MathElement {
+    // Extensible arrows like \xrightarrow, \xleftarrow
+    let metrics = ctx.metrics();
+
+    // Build upper label (above arrow) in sup style
+    let sup_ctx = ctx.for_superscript();
+    let upper = build_node(&arrow.body, &sup_ctx);
+    let (upper_width, upper_height, upper_depth) = upper.dimensions();
+
+    // Build lower label (below arrow) in sub style if present
+    let (lower, lower_height, lower_depth, lower_width) = if let Some(ref below) = arrow.below {
+        let sub_ctx = ctx.for_subscript();
+        let l = build_node(below, &sub_ctx);
+        let (w, h, d) = l.dimensions();
+        (Some(l), h, d, w)
+    } else {
+        (None, 0.0, 0.0, 0.0)
+    };
+
+    // Arrow dimensions - minimum width based on labels
+    let arrow_width = (upper_width.max(lower_width) + 0.5).max(1.75);
+    let arrow_height = metrics.default_rule_thickness * 2.0;
+
+    // Build arrow symbol using label (e.g., "\\xrightarrow" -> "→")
+    let arrow_char = match arrow.label.as_str() {
+        "\\xrightarrow" | "\\xRightarrow" => "→",
+        "\\xleftarrow" | "\\xLeftarrow" => "←",
+        "\\xleftrightarrow" | "\\xLeftrightarrow" => "↔",
+        "\\xhookleftarrow" => "↩",
+        "\\xhookrightarrow" => "↪",
+        "\\xmapsto" => "↦",
+        "\\xrightharpoonup" => "⇀",
+        "\\xrightharpoondown" => "⇁",
+        "\\xleftharpoonup" => "↼",
+        "\\xleftharpoondown" => "↽",
+        _ => "→",
+    };
+    let arrow_sym = build_symbol(arrow_char, ctx, true);
+
+    // Stack: upper, arrow, lower (if present)
+    let axis_height = metrics.axis_height;
+    let gap = 0.1; // Kerning between arrow and labels
+
+    let mut children = Vec::new();
+    let mut y = axis_height + arrow_height / 2.0 + gap;
+
+    // Upper label
+    children.push(Positioned::new(upper.clone(), 0.0, y + upper_depth));
+    y = axis_height;
+
+    // Arrow at axis height
+    children.push(Positioned::new(arrow_sym.clone(), 0.0, y));
+
+    // Lower label if present
+    if let Some(ref low) = lower {
+        let low_y = axis_height - arrow_height / 2.0 - gap - lower_height;
+        children.push(Positioned::new(low.clone(), 0.0, low_y));
+    }
+
+    let total_height = axis_height + arrow_height / 2.0 + gap + upper_height + upper_depth;
+    let total_depth = if lower.is_some() {
+        (axis_height - arrow_height / 2.0 - gap - lower_height - lower_depth).abs()
+    } else {
+        0.0
+    };
+
+    MathElement::VBox {
+        children,
+        width: arrow_width,
+        height: total_height,
+        depth: total_depth,
+    }
+}
+
+fn build_enclose(enclose: &EncloseNode, ctx: &LayoutContext) -> MathElement {
+    // \boxed, \colorbox, \fcolorbox, \cancel, etc.
+    let inner = build_node(&enclose.body, ctx);
+    let (width, height, depth) = inner.dimensions();
+
+    // Add padding for boxes
+    let padding = match enclose.label.as_str() {
+        "\\boxed" | "\\fbox" | "\\colorbox" | "\\fcolorbox" => ctx.metrics().fboxsep,
+        _ => 0.0,
+    };
+
+    let padded_width = width + 2.0 * padding;
+    let padded_height = height + padding;
+    let padded_depth = depth + padding;
+
+    // For now, wrap in HBox with appropriate dimensions
+    // The actual border/background rendering is handled by the renderer
+    MathElement::HBox {
+        children: vec![Positioned::new(inner, padding, 0.0)],
+        width: padded_width,
+        height: padded_height,
+        depth: padded_depth,
+        classes: vec![enclose.label.trim_start_matches('\\').to_string()],
+    }
+}
+
+fn build_horiz_brace(brace: &HorizBraceNode, ctx: &LayoutContext) -> MathElement {
+    // \overbrace, \underbrace
+    let base = build_node(&brace.base, ctx);
+    let (base_width, base_height, base_depth) = base.dimensions();
+
+    // Build brace symbol
+    let brace_char = match brace.label.as_str() {
+        "\\overbrace" => "⏞",
+        "\\underbrace" => "⏟",
+        "\\overgroup" => "⏠",
+        "\\undergroup" => "⏡",
+        _ => "⏞",
+    };
+    let brace_sym = build_symbol(brace_char, ctx, true);
+    let (_, brace_height, brace_depth) = brace_sym.dimensions();
+
+    let gap = 0.1; // Kerning between brace and content
+
+    let (children, height, depth) = if brace.is_over {
+        // Brace above content
+        let children = vec![
+            Positioned::new(brace_sym.clone(), 0.0, base_height + gap),
+            Positioned::at_origin(base.clone()),
+        ];
+        (children, base_height + gap + brace_height, base_depth)
+    } else {
+        // Brace below content
+        let brace_y = -(base_depth + gap + brace_height);
+        let children = vec![
+            Positioned::at_origin(base.clone()),
+            Positioned::new(brace_sym.clone(), 0.0, brace_y),
+        ];
+        (children, base_height, base_depth + gap + brace_height + brace_depth)
+    };
+
+    let layout = MathElement::VBox {
+        children,
+        width: base_width,
+        height,
+        depth,
+    };
+
+    if ctx.config.semantic_mode {
+        MathElement::Accent {
+            base: Box::new(base),
+            accent: Box::new(brace_sym),
+            is_over: brace.is_over,
+            layout: Box::new(layout),
+        }
+    } else {
+        layout
+    }
+}
+
+fn build_lap(lap: &LapNode, ctx: &LayoutContext) -> MathElement {
+    // \llap, \rlap, \clap - overlapping content
+    let inner = build_node(&lap.body, ctx);
+    let (width, height, depth) = inner.dimensions();
+
+    // Lap elements have zero width but preserve height/depth
+    // The alignment class tells the renderer how to position
+    MathElement::HBox {
+        children: vec![Positioned::at_origin(inner)],
+        width: 0.0, // Zero width - content overlaps
+        height,
+        depth,
+        classes: vec![lap.alignment.clone()],
+    }
+}
+
+fn build_math_choice(choice: &MathChoiceNode, ctx: &LayoutContext) -> MathElement {
+    // \mathchoice - select branch based on current style
+    let body = if ctx.is_display() {
+        &choice.display
+    } else if ctx.is_script() {
+        &choice.script
+    } else if ctx.is_scriptscript() {
+        &choice.script_script
+    } else {
+        &choice.text
+    };
+
+    build_expression(body, ctx)
+}
+
+fn build_raise_box(rbox: &RaiseBoxNode, ctx: &LayoutContext) -> MathElement {
+    // \raisebox - vertically shift content
+    let inner = build_node(&rbox.body, ctx);
+    let (width, height, depth) = inner.dimensions();
+
+    let dy = calculate_size(&rbox.dy, &ctx.options);
+
+    // Positive dy raises content (shifts baseline down relative to content)
+    MathElement::HBox {
+        children: vec![Positioned::new(inner, 0.0, dy)],
+        width,
+        height: (height + dy).max(0.0),
+        depth: (depth - dy).max(0.0),
+        classes: vec![],
+    }
+}
+
+fn build_smash(smash: &SmashNode, ctx: &LayoutContext) -> MathElement {
+    // \smash - zero out height and/or depth
+    let inner = build_node(&smash.body, ctx);
+    let (width, height, depth) = inner.dimensions();
+
+    let final_height = if smash.smash_height { 0.0 } else { height };
+    let final_depth = if smash.smash_depth { 0.0 } else { depth };
+
+    MathElement::HBox {
+        children: vec![Positioned::at_origin(inner)],
+        width,
+        height: final_height,
+        depth: final_depth,
+        classes: vec![],
+    }
+}
+
+fn build_vcenter(vc: &VCenterNode, ctx: &LayoutContext) -> MathElement {
+    // \vcenter - center content on math axis
+    let inner = build_node(&vc.body, ctx);
+    let (width, height, depth) = inner.dimensions();
+
+    let axis_height = ctx.metrics().axis_height;
+
+    // Shift to center content on axis
+    // Formula: dy = 0.5 * ((height - axis) - (depth + axis))
+    let dy = 0.5 * ((height - axis_height) - (depth + axis_height));
+
+    MathElement::HBox {
+        children: vec![Positioned::new(inner, 0.0, dy)],
+        width,
+        height: height - dy,
+        depth: depth + dy,
+        classes: vec![],
+    }
+}
+
+fn build_array(arr: &ArrayNode, ctx: &LayoutContext) -> MathElement {
+    // Arrays and matrices
+    let metrics = ctx.metrics();
+
+    // Column separation
+    let col_sep = match arr.col_separation_type {
+        Some(ColSeparationType::Small) => 0.2778, // Small spacing
+        Some(ColSeparationType::Cd) => 0.5,       // CD environment
+        _ => 0.5,                                  // Default (5pt at 10pt font)
+    };
+
+    // Row separation
+    let base_row_skip = 1.2; // 12pt at 10pt font
+    let jot = if arr.add_jot.unwrap_or(false) { 0.3 } else { 0.0 };
+
+    // Build all cells
+    let mut rows: Vec<Vec<MathElement>> = Vec::new();
+    let mut row_heights: Vec<f64> = Vec::new();
+    let mut row_depths: Vec<f64> = Vec::new();
+    let mut col_widths: Vec<f64> = Vec::new();
+
+    for row in &arr.body {
+        let mut built_row = Vec::new();
+        let mut max_height = 0.0f64;
+        let mut max_depth = 0.0f64;
+
+        for (col_idx, cell) in row.iter().enumerate() {
+            let cell_elem = build_node(cell, ctx);
+            let (w, h, d) = cell_elem.dimensions();
+
+            // Track column widths
+            if col_idx >= col_widths.len() {
+                col_widths.push(w);
+            } else {
+                col_widths[col_idx] = col_widths[col_idx].max(w);
+            }
+
+            max_height = max_height.max(h);
+            max_depth = max_depth.max(d);
+            built_row.push(cell_elem);
+        }
+
+        row_heights.push(max_height);
+        row_depths.push(max_depth);
+        rows.push(built_row);
+    }
+
+    // Calculate total dimensions
+    let total_width: f64 = col_widths.iter().sum::<f64>()
+        + col_sep * (col_widths.len().saturating_sub(1)) as f64;
+
+    // Position cells
+    let mut children = Vec::new();
+    let mut y = 0.0;
+
+    for (row_idx, row) in rows.iter().enumerate() {
+        let row_height = row_heights[row_idx];
+        let row_depth = row_depths[row_idx];
+
+        // Start at top of row
+        if row_idx == 0 {
+            y = row_height;
+        }
+
+        let mut x = 0.0;
+        for (col_idx, cell) in row.iter().enumerate() {
+            let col_width = col_widths[col_idx];
+            let (cell_width, _, _) = cell.dimensions();
+
+            // Center cell in column (default alignment)
+            let x_offset = (col_width - cell_width) / 2.0;
+
+            children.push(Positioned::new(cell.clone(), x + x_offset, y));
+
+            x += col_width + col_sep;
+        }
+
+        // Move to next row
+        let gap = if row_idx + 1 < arr.row_gaps.len() {
+            arr.row_gaps[row_idx + 1]
+                .as_ref()
+                .map(|m| calculate_size(m, &ctx.options))
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
+
+        if row_idx + 1 < rows.len() {
+            y -= row_depth + base_row_skip + jot + gap + row_heights[row_idx + 1];
+        }
+    }
+
+    let total_height = row_heights.first().copied().unwrap_or(0.0);
+    let total_depth = if rows.len() > 1 {
+        (-y + row_depths.last().copied().unwrap_or(0.0)).abs()
+    } else {
+        row_depths.first().copied().unwrap_or(0.0)
+    };
+
+    // Center array on axis
+    let axis_height = metrics.axis_height;
+    let shift = (total_height - total_depth) / 2.0 - axis_height;
+
+    // Apply shift to all children
+    let shifted_children: Vec<_> = children
+        .into_iter()
+        .map(|mut p| {
+            p.y -= shift;
+            p
+        })
+        .collect();
+
+    let layout = MathElement::VBox {
+        children: shifted_children,
+        width: total_width,
+        height: total_height - shift,
+        depth: total_depth + shift,
+    };
+
+    if ctx.config.semantic_mode {
+        MathElement::Array {
+            cells: rows,
+            row_lines: arr.h_lines_before_row.iter().map(|v| !v.is_empty()).collect(),
+            col_lines: vec![false; col_widths.len()], // TODO: parse column lines
+            layout: Box::new(layout),
+        }
+    } else {
+        layout
+    }
 }
 
 #[cfg(test)]
