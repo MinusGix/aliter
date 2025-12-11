@@ -170,6 +170,15 @@ impl<'a> LayoutContext<'a> {
     pub fn cramped(&self) -> LayoutContext<'a> {
         self.with_style(self.options.style.cramp())
     }
+
+    /// Create a child context with a specific font.
+    pub fn with_font(&self, font: &str) -> LayoutContext<'a> {
+        let new_options = self.options.clone().with_font(font.to_string());
+        LayoutContext {
+            options: new_options,
+            config: self.config,
+        }
+    }
 }
 
 // =============================================================================
@@ -917,18 +926,25 @@ fn build_color(color: &ColorNode, ctx: &LayoutContext) -> MathElement {
 }
 
 fn build_font(font: &FontNode, ctx: &LayoutContext) -> MathElement {
-    // TODO: Apply font to context
-    build_node(&font.body, ctx)
+    // Apply font override to context
+    let font_ctx = ctx.with_font(&font.font);
+    build_node(&font.body, &font_ctx)
 }
 
 fn build_styling(styling: &StylingNode, ctx: &LayoutContext) -> MathElement {
-    // TODO: Apply style to context
-    build_expression(&styling.body, ctx)
+    // Apply style override to context
+    let new_style = styling.style.into_style_id();
+    let styled_ctx = ctx.with_style(new_style);
+    build_expression(&styling.body, &styled_ctx)
 }
 
 fn build_sizing(sizing: &SizingNode, ctx: &LayoutContext) -> MathElement {
-    // TODO: Apply size to context
-    build_expression(&sizing.body, ctx)
+    // Apply size override to context
+    // Size is 1-based index, where 1 = \tiny, 10 = \Huge, 6 = \normalsize
+    let new_options = ctx.options().having_size(sizing.size)
+        .unwrap_or_else(|| ctx.options().clone());
+    let sized_ctx = LayoutContext::new(&new_options, ctx.config);
+    build_expression(&sizing.body, &sized_ctx)
 }
 
 fn build_overline(over: &OverlineNode, ctx: &LayoutContext) -> MathElement {
@@ -1046,26 +1062,63 @@ fn build_rule(rule: &RuleNode, ctx: &LayoutContext) -> MathElement {
     }
 }
 
+/// Build a stretchy delimiter at a given height.
+fn build_stretchy_delimiter(delim: &str, height: f64, ctx: &LayoutContext) -> MathElement {
+    // Calculate delimiter dimensions
+    let metrics = ctx.metrics();
+    let axis_height = metrics.axis_height;
+
+    // Estimate width based on delimiter type
+    let width = match delim {
+        "(" | ")" | "[" | "]" => 0.35,
+        "{" | "}" | "⟨" | "⟩" | "\\langle" | "\\rangle" => 0.40,
+        "|" | "\\|" | "\\vert" | "\\Vert" => 0.20,
+        "/" | "\\" | "\\backslash" => 0.50,
+        _ => 0.35, // Default
+    } * ctx.size_multiplier();
+
+    // Stretchy delimiters are centered on the axis
+    let shift = axis_height;
+    let depth = height / 2.0 - shift;
+    let elem_height = height / 2.0 + shift;
+
+    MathElement::Path {
+        path_data: std::borrow::Cow::Owned(format!("delimiter:{}", delim)),
+        width,
+        height: elem_height + depth,
+        shift: -depth, // Shift so delimiter is centered on axis
+    }
+}
+
 fn build_left_right(lr: &LeftRightNode, ctx: &LayoutContext) -> MathElement {
     let body = build_expression(&lr.body, ctx);
-    let (_, height, depth) = body.dimensions();
+    let (body_width, height, depth) = body.dimensions();
 
-    // TODO: Build proper stretchy delimiters
-    // left and right are Strings; "." means no delimiter
+    // Calculate proper delimiter size using TeX formula
+    let metrics = ctx.metrics();
+    let axis_height = metrics.axis_height * ctx.size_multiplier();
+    let delimiter_factor = 901.0;
+    let delimiter_extend = 5.0 / metrics.pt_per_em;
+
+    let max_dist_from_axis = (height - axis_height).max(depth + axis_height);
+    let total_delim_height = (max_dist_from_axis / 500.0 * delimiter_factor)
+        .max(2.0 * max_dist_from_axis - delimiter_extend);
+
+    // Build delimiters with computed height
+    // "." means no delimiter
     let left = if lr.left.is_empty() || lr.left == "." {
         None
     } else {
-        Some(build_symbol(&lr.left, ctx, true))
+        Some(build_stretchy_delimiter(&lr.left, total_delim_height, ctx))
     };
     let right = if lr.right.is_empty() || lr.right == "." {
         None
     } else {
-        Some(build_symbol(&lr.right, ctx, true))
+        Some(build_stretchy_delimiter(&lr.right, total_delim_height, ctx))
     };
 
     let left_width = left.as_ref().map(|l| l.width()).unwrap_or(0.0);
     let right_width = right.as_ref().map(|r| r.width()).unwrap_or(0.0);
-    let body_width = body.width();
 
     let mut children = Vec::new();
     let mut x = 0.0;
