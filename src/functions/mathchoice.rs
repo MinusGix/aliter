@@ -26,7 +26,8 @@ fn choose_math_style<'a>(group: &'a MathChoiceNode, options: &crate::Options) ->
 pub fn add_functions(fns: &mut Functions) {
     let mathchoice = Arc::new(FunctionSpec {
         prop: FunctionPropSpec::new_num_args(ParseNodeType::MathChoice, 4)
-            .with_primitive(true),
+            .with_primitive(true)
+            .with_allowed_in_argument(true),
         handler: Box::new(mathchoice_handler),
         #[cfg(feature = "html")]
         html_builder: Some(Box::new(|group, options| {

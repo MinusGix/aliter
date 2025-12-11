@@ -20,8 +20,7 @@ pub fn add_functions(fns: &mut Functions) {
             // parse out the implicit body
             let body = ctx
                 .parser
-                .dispatch_parse_expression(true, ctx.break_on_token_text)
-                .unwrap();
+                .dispatch_parse_expression(true, ctx.break_on_token_text)?;
 
             let style = &ctx.func_name[1..ctx.func_name.len() - 5];
             let style = match style {
