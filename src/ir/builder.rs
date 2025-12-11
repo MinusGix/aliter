@@ -412,11 +412,11 @@ fn build_symbol(text: &str, ctx: &LayoutContext, math_mode: bool) -> MathElement
     let first_char = text.chars().next().unwrap_or('?');
     let metrics = ctx.char_metrics(first_char, font_name, mode);
 
-    let (width, italic, skew) = if let Some(m) = metrics {
-        (m.width, m.italic, m.skew)
+    let (width, height, depth, italic, skew) = if let Some(m) = metrics {
+        (m.width, m.height, m.depth, m.italic, m.skew)
     } else {
-        // Fallback approximation
-        (0.5, 0.0, 0.0)
+        // Fallback approximation using typical KaTeX_Main metrics
+        (0.5, 0.656, 0.219, 0.0, 0.0)
     };
 
     let size = ctx.size_multiplier();
@@ -430,6 +430,8 @@ fn build_symbol(text: &str, ctx: &LayoutContext, math_mode: bool) -> MathElement
             italic_correction: if math_mode { italic } else { 0.0 },
             skew,
             width: Some(width * size),
+            height: Some(height * size),
+            depth: Some(depth * size),
         },
     }
 }
@@ -612,6 +614,28 @@ fn build_fraction(frac: &GenFracNode, ctx: &LayoutContext) -> MathElement {
 // Superscript/Subscript Builder
 // =============================================================================
 
+/// Extract italic correction from a MathElement (for script positioning).
+fn get_italic_correction(elem: &MathElement) -> f64 {
+    match elem {
+        MathElement::Text { style, .. } => style.italic_correction,
+        // For compound elements, check the rightmost child
+        MathElement::HBox { children, .. } => {
+            children.last()
+                .map(|c| get_italic_correction(&c.element))
+                .unwrap_or(0.0)
+        }
+        // Semantic variants delegate to their layout
+        MathElement::Scripts { layout, .. }
+        | MathElement::Fraction { layout, .. }
+        | MathElement::Radical { layout, .. }
+        | MathElement::Accent { layout, .. }
+        | MathElement::Delimited { layout, .. }
+        | MathElement::LargeOp { layout, .. }
+        | MathElement::Array { layout, .. } => get_italic_correction(layout),
+        _ => 0.0,
+    }
+}
+
 fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
     let metrics = ctx.metrics();
 
@@ -620,6 +644,7 @@ fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
     let base_height = base.as_ref().map(|b| b.height()).unwrap_or(0.0);
     let base_depth = base.as_ref().map(|b| b.depth()).unwrap_or(0.0);
     let base_width = base.as_ref().map(|b| b.width()).unwrap_or(0.0);
+    let base_italic = base.as_ref().map(|b| get_italic_correction(b)).unwrap_or(0.0);
 
     // Build scripts in appropriate styles
     let sup_ctx = ctx.for_superscript();
@@ -629,13 +654,19 @@ fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
 
     // Compute positions using TeX rules (Rule 18)
     // These are the font metric values for script positioning
-    let mut sup_shift = metrics.sup1; // Default superscript shift
     let mut sub_shift = metrics.sub1; // Default subscript shift
 
-    // Adjust based on style
-    if ctx.is_cramped() {
-        sup_shift = metrics.sup3;
-    }
+    // Choose superscript shift based on style (TeX Rule 18a):
+    // - sup1: display style
+    // - sup2: text style (non-display, non-cramped)
+    // - sup3: cramped style
+    let mut sup_shift = if ctx.is_display() {
+        metrics.sup1
+    } else if ctx.is_cramped() {
+        metrics.sup3
+    } else {
+        metrics.sup2
+    };
 
     // Ensure minimum clearance
     if let Some(ref sup_elem) = sup {
@@ -666,18 +697,25 @@ fn build_supsub(supsub: &SupSubNode, ctx: &LayoutContext) -> MathElement {
     // Build positioned elements
     let base_pos = base.map(|b| Positioned::new(b, 0.0, 0.0));
 
+    // Superscript is shifted right by italic correction (for italic bases like f^2)
     let sup_pos = sup.map(|s| {
-        Positioned::new(s, base_width, sup_shift)
+        Positioned::new(s, base_width + base_italic, sup_shift)
     });
 
+    // Subscript stays at base_width (no italic correction)
     let sub_pos = sub.map(|s| {
         Positioned::new(s, base_width, -sub_shift)
     });
 
     // Compute overall dimensions
-    let script_width = sup_pos.as_ref().map(|s| s.element.width()).unwrap_or(0.0)
-        .max(sub_pos.as_ref().map(|s| s.element.width()).unwrap_or(0.0));
-    let total_width = base_width + script_width;
+    // Superscript width includes italic correction offset
+    let sup_extent = sup_pos.as_ref()
+        .map(|s| base_italic + s.element.width())
+        .unwrap_or(0.0);
+    let sub_extent = sub_pos.as_ref()
+        .map(|s| s.element.width())
+        .unwrap_or(0.0);
+    let total_width = base_width + sup_extent.max(sub_extent);
 
     let height = base_height.max(
         sup_pos.as_ref().map(|s| s.y + s.element.height()).unwrap_or(0.0)

@@ -122,8 +122,12 @@ pub struct TextStyle {
     pub italic_correction: f64,
     /// Skew for accent positioning
     pub skew: f64,
-    /// Actual width from font metrics (if known)
+    /// Actual width from font metrics (if known), pre-scaled by size
     pub width: Option<f64>,
+    /// Height above baseline from font metrics (if known), pre-scaled by size
+    pub height: Option<f64>,
+    /// Depth below baseline from font metrics (if known), pre-scaled by size
+    pub depth: Option<f64>,
 }
 
 /// Line style for rules/strokes.
@@ -364,21 +368,32 @@ impl MathElement {
     pub fn dimensions(&self) -> (f64, f64, f64) {
         match self {
             MathElement::Text { style, text } => {
-                // Use stored width if available, otherwise approximate
+                // Use stored metrics if available, otherwise approximate.
+                // All metrics are pre-scaled by size in the builder.
+                let size = style.size.max(1.0);
                 let width = style.width.unwrap_or_else(|| {
-                    text.chars().count() as f64 * 0.5 * style.size.max(1.0)
+                    text.chars().count() as f64 * 0.5 * size
                 });
-                let height = 0.7 * style.size.max(1.0);
-                let depth = 0.2 * style.size.max(1.0);
+                // Default height/depth based on typical KaTeX_Main metrics:
+                // ascent ≈ 0.656, descent ≈ 0.219
+                let height = style.height.unwrap_or(0.656 * size);
+                let depth = style.depth.unwrap_or(0.219 * size);
                 (width, height, depth)
             }
             MathElement::HBox { width, height, depth, .. } => (*width, *height, *depth),
             MathElement::VBox { width, height, depth, .. } => (*width, *height, *depth),
-            MathElement::Rule { width, height, shift, .. } => {
-                (*width, *height + shift.max(0.0), (-shift).max(0.0))
+            MathElement::Rule { width, height, .. } => {
+                // Rule dimensions are just its intrinsic size (width x height).
+                // The shift field is metadata for renderers; positioning is handled
+                // by the Positioned wrapper, not by inflating dimensions.
+                (*width, *height, 0.0)
             }
             MathElement::Path { width, height, shift, .. } => {
-                (*width, *height + shift.max(0.0), (-shift).max(0.0))
+                // For Path, shift encodes where the baseline sits within the element.
+                // Positive shift = baseline is above center (element extends below)
+                // Negative shift = baseline is below center (element extends above)
+                // This is used for stretchy delimiters that need proper height/depth.
+                (*width, *height + shift.max(0.0), (-*shift).max(0.0))
             }
             MathElement::Kern { width } => (*width, 0.0, 0.0),
             MathElement::Phantom { inner } => inner.dimensions(),
@@ -575,6 +590,8 @@ mod tests {
 
     #[test]
     fn test_element_dimensions() {
+        // Rule dimensions are intrinsic size only - shift is metadata for renderers,
+        // not included in the bounding box (positioning handles placement)
         let rule = MathElement::Rule {
             width: 10.0,
             height: 0.04,
@@ -584,8 +601,33 @@ mod tests {
         };
         let (w, h, d) = rule.dimensions();
         assert_eq!(w, 10.0);
-        assert_eq!(h, 0.04 + 0.25); // height + shift
-        assert_eq!(d, 0.0); // shift is positive, so no depth
+        assert_eq!(h, 0.04); // Just the intrinsic height
+        assert_eq!(d, 0.0);  // Rules sit above baseline
+
+        // Path uses shift to encode baseline position within the element
+        // (different semantics from Rule - used for stretchy delimiters)
+        let path = MathElement::Path {
+            path_data: std::borrow::Cow::Borrowed("test"),
+            width: 1.0,
+            height: 2.0,
+            shift: -0.5, // Baseline is 0.5 below center, so depth = 0.5
+        };
+        let (w, h, d) = path.dimensions();
+        assert_eq!(w, 1.0);
+        assert_eq!(h, 2.0); // height + (-0.5).max(0) = 2.0
+        assert_eq!(d, 0.5); // (-(-0.5)).max(0) = 0.5
+
+        // Positive shift means baseline above center
+        let path2 = MathElement::Path {
+            path_data: std::borrow::Cow::Borrowed("test"),
+            width: 1.0,
+            height: 2.0,
+            shift: 0.5, // Baseline is 0.5 above center
+        };
+        let (w, h, d) = path2.dimensions();
+        assert_eq!(w, 1.0);
+        assert_eq!(h, 2.5); // height + 0.5
+        assert_eq!(d, 0.0); // No depth when shift is positive
     }
 
     #[test]

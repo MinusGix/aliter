@@ -24,6 +24,9 @@ fn convert_node(node: &HtmlNode) -> MathElement {
                 size: sym.node.max_font_size.max(1.0),
                 font: infer_font_from_classes(&sym.node.classes),
                 width: Some(sym.width),
+                // Height/depth not available from HTML; dimensions() uses defaults
+                height: None,
+                depth: None,
             };
             MathElement::Text {
                 text: sym.text.clone(),
