@@ -365,6 +365,13 @@ fn build_node(node: &ParseNode, ctx: &LayoutContext) -> MathElement {
         ParseNode::Rule(rule) => build_rule(rule, ctx),
         ParseNode::LeftRight(lr) => build_left_right(lr, ctx),
         ParseNode::Text(text) => build_text(text, ctx),
+        ParseNode::MClass(mclass) => build_mclass(mclass, ctx),
+        ParseNode::OperatorName(opname) => build_operator_name(opname, ctx),
+        ParseNode::AccentUnder(accent) => build_accent_under(accent, ctx),
+        ParseNode::DelimSizing(delim) => build_delim_sizing(delim, ctx),
+        ParseNode::Middle(middle) => build_middle(middle, ctx),
+        ParseNode::Href(href) => build_href(href, ctx),
+        ParseNode::HBox(hbox) => build_hbox(hbox, ctx),
 
         // Fallback for unimplemented nodes
         _ => {
@@ -1203,6 +1210,80 @@ fn build_left_right(lr: &LeftRightNode, ctx: &LayoutContext) -> MathElement {
 fn build_text(text: &TextNode, ctx: &LayoutContext) -> MathElement {
     // Build text mode content
     build_expression(&text.body, ctx)
+}
+
+fn build_mclass(mclass: &MClassNode, ctx: &LayoutContext) -> MathElement {
+    // MClass wraps content with a specific math class (bin, rel, etc.)
+    // The class affects spacing but not rendering, so just build the body
+    build_expression(&mclass.body, ctx)
+}
+
+fn build_operator_name(opname: &OperatorNameNode, ctx: &LayoutContext) -> MathElement {
+    // \operatorname renders text in roman font
+    let font_ctx = ctx.with_font("mathrm");
+    build_expression(&opname.body, &font_ctx)
+}
+
+fn build_accent_under(accent: &AccentUnderNode, ctx: &LayoutContext) -> MathElement {
+    let base = build_node(&accent.base, ctx);
+    let accent_sym = build_symbol(&accent.label, ctx, true);
+
+    let (base_width, base_height, base_depth) = base.dimensions();
+    let (_, accent_height, accent_depth) = accent_sym.dimensions();
+
+    let layout = MathElement::VBox {
+        children: vec![
+            Positioned::at_origin(base.clone()),
+            Positioned::new(accent_sym.clone(), 0.0, -(base_depth + accent_height)),
+        ],
+        width: base_width,
+        height: base_height,
+        depth: base_depth + accent_height + accent_depth,
+    };
+
+    if ctx.config.semantic_mode {
+        MathElement::Accent {
+            base: Box::new(base),
+            accent: Box::new(accent_sym),
+            is_over: false,
+            layout: Box::new(layout),
+        }
+    } else {
+        layout
+    }
+}
+
+fn build_delim_sizing(delim: &DelimSizingNode, ctx: &LayoutContext) -> MathElement {
+    // \big, \Big, \bigg, \Bigg delimiters
+    let size_multiplier = match delim.size {
+        DelimSize::One => 1.2,
+        DelimSize::Two => 1.8,
+        DelimSize::Three => 2.4,
+        DelimSize::Four => 3.0,
+    };
+
+    let base_height = ctx.metrics().delim1 * size_multiplier;
+    build_stretchy_delimiter(&delim.delim, base_height, ctx)
+}
+
+fn build_middle(middle: &MiddleNode, ctx: &LayoutContext) -> MathElement {
+    // \middle delimiter - similar to stretchy but typically uses current height
+    // For now, use a default height; proper implementation would inherit from parent
+    let height = ctx.metrics().delim2;
+    build_stretchy_delimiter(&middle.delim, height, ctx)
+}
+
+fn build_href(href: &HrefNode, ctx: &LayoutContext) -> MathElement {
+    let inner = build_expression(&href.body, ctx);
+    MathElement::Link {
+        href: href.href.clone(),
+        inner: Box::new(inner),
+    }
+}
+
+fn build_hbox(hbox: &HBoxNode, ctx: &LayoutContext) -> MathElement {
+    // \hbox, \mbox - horizontal box in text mode
+    build_expression(&hbox.body, ctx)
 }
 
 #[cfg(test)]
